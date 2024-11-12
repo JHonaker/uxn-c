@@ -1,38 +1,30 @@
 #include "common.h"
+#include "stack.h"
 
 #ifndef uxn_h
 #define uxn_h
 
-#define ZERO_PAGE 0x00
+#define T Uxn
 
-#define START_PC 0x0100
-
-#define STACK_SIZE 0x100
-
-#define RAM_SIZE 0x10000
-
-typedef struct {
-  Byte stack[STACK_SIZE];
-  Byte ptr;
-} Stack;
-
-typedef struct Uxn {
+typedef struct T {
   Byte ram[RAM_SIZE];
   Stack work;
   Stack ret;
-} Uxn;
+} T;
 
-void initUxn(Uxn *uxn);
 
-void uxn_push_work(Uxn *uxn, Byte value);
-Byte uxn_pop_work(Uxn *uxn);
-Byte uxn_peek_work_offset(Uxn *uxn, Byte offset);
-Byte uxn_peek_work(Uxn *uxn);
+void initUxn(T *uxn);
 
-void uxn_push_ret(Uxn *uxn, Byte value);
-Byte uxn_pop_ret(Uxn *uxn);
-Byte uxn_peek_ret(Uxn *uxn);
+void Uxn_push_work(T *uxn, Byte value);
+Byte Uxn_pop_work(T *uxn);
+Byte Uxn_peek_work_offset(T *uxn, Byte offset);
+Byte Uxn_peek_work(T *uxn);
 
-bool uxn_eval(Uxn *uxn, Short pc);
+void Uxn_push_ret(T *uxn, Byte value);
+Byte Uxn_pop_ret(T *uxn);
+Byte Uxn_peek_ret(T *uxn);
 
+bool Uxn_eval(T *uxn, Short pc);
+
+#undef T
 #endif // uxn_h

@@ -1,4 +1,3 @@
-#include "common.h"
 #include "uxn.h"
 #include "debug.h"
 #include <stdio.h>
@@ -7,12 +6,8 @@ void initUxn(Uxn *uxn) {
   for (int i = 0; i < 0x10000; i++) {
     uxn->ram[i] = 0;
   }
-  for (int i = 0; i < 0x100; i++) {
-    uxn->work.stack[i] = 0;
-    uxn->ret.stack[i] = 0;
-  }
-  uxn->work.ptr = 0;
-  uxn->ret.ptr = 0;
+  Stack_init(&uxn->work);
+  Stack_init(&uxn->ret);
 }
 
 /**
@@ -21,9 +16,8 @@ void initUxn(Uxn *uxn) {
  * @param uxn Pointer to the Uxn instance.
  * @param value The byte value to be pushed onto the working stack.
  */
-
-void uxn_push_work(Uxn *uxn, Byte value) {
-  uxn->work.stack[uxn->work.ptr++] = value;
+void Uxn_push_work(Uxn *uxn, Byte value) {
+  Stack_push(&uxn->work, value);
 }
 
 /**
@@ -33,8 +27,8 @@ void uxn_push_work(Uxn *uxn, Byte value) {
  * 
  * @return The byte value popped from the working stack.
  */
-Byte uxn_pop_work(Uxn *uxn) {
-  return uxn->work.stack[--uxn->work.ptr];
+Byte Uxn_pop_work(Uxn *uxn) {
+  return Stack_pop(&uxn->work);
 }
 
 /**
@@ -45,8 +39,8 @@ Byte uxn_pop_work(Uxn *uxn) {
  *
  * @return The byte value at the specified offset in the working stack.
  */
-Byte uxn_peek_work_offset(Uxn *uxn, Byte offset) {
-  return uxn->work.stack[uxn->work.ptr - (offset + 1)];
+Byte Uxn_peek_work_offset(Uxn *uxn, Byte offset) {
+  return Stack_peek_offset(&uxn->work, offset);
 }
 
 /**
@@ -56,8 +50,8 @@ Byte uxn_peek_work_offset(Uxn *uxn, Byte offset) {
  * 
  * @return The byte value at the top of the working stack.
  */
-Byte uxn_peek_work(Uxn *uxn) {
-  return uxn_peek_work_offset(uxn, 0);
+Byte Uxn_peek_work(Uxn *uxn) {
+  return Stack_peek(&uxn->work);
 }
 
 /**
@@ -69,8 +63,8 @@ Byte uxn_peek_work(Uxn *uxn) {
  * Adds a single byte value to the top of the Return stack. Used primarily
  * for function return addresses and temporary storage during subroutine calls.
  */
-void uxn_push_ret(Uxn *uxn, Byte value) {
-  uxn->ret.stack[uxn->ret.ptr++] = value;
+void Uxn_push_ret(Uxn *uxn, Byte value) {
+  Stack_push(&uxn->ret, value);
 }
 
 /**
@@ -80,8 +74,8 @@ void uxn_push_ret(Uxn *uxn, Byte value) {
  * 
  * @return The byte value popped from the return stack
  */
-Byte uxn_pop_ret(Uxn *uxn) {
-  return uxn->ret.stack[--uxn->ret.ptr];
+Byte Uxn_pop_ret(Uxn *uxn) {
+  return Stack_pop(&uxn->ret);
 }
 
 /**
@@ -91,8 +85,8 @@ Byte uxn_pop_ret(Uxn *uxn) {
  * 
  * @return The byte value at the top of the return stack
  */
-Byte uxn_peek_ret(Uxn *uxn) {
-  return uxn->ret.stack[uxn->ret.ptr - 1];
+Byte Uxn_peek_ret(Uxn *uxn) {
+  return Stack_peek(&uxn->ret);
 }
 
 /**
@@ -103,13 +97,13 @@ Byte uxn_peek_ret(Uxn *uxn) {
  * 
  * @return True if the instruction was successfully evaluated, false otherwise
  */
-bool uxn_eval(Uxn *uxn, Short pc) {
+bool Uxn_eval(Uxn *uxn, Short pc) {
   Byte op = uxn->ram[pc];
 
   switch (op) {
     case 0x80: // LIT
-      Byte literal_value = uxn_peek_work_offset(uxn, 1);
-      uxn_push_work(uxn, literal_value);
+      Byte literal_value = Uxn_peek_work_offset(uxn, 1);
+      Uxn_push_work(uxn, literal_value);
       return true;
     case 0x00: // BRK
       return true;
