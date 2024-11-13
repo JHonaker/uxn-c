@@ -399,14 +399,6 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
   }
 }
 
-bool Uxn_step(Uxn* uxn) {
-  if (uxn) {
-    if (Uxn_eval(uxn, RESET_VECTOR)) {
-      return true;
-    }
-  }
-}
-
 void Uxn_dump(Uxn* uxn) {
   if (uxn) {
     Stack_dump(uxn->work, "WORK");

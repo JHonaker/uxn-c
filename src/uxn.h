@@ -105,15 +105,6 @@ void Uxn_page_write_short(T* uxn, Byte addr, Short value);
  */
 bool Uxn_eval(T* uxn, Short pc);
 
-/**
- * Steps the Uxn virtual machine instance.
- * 
- * @param uxn Pointer to the Uxn virtual machine instance
- * 
- * @return True if the Uxn virtual machine instance successfully stepped, false otherwise
- */
-bool Uxn_step(T* uxn);
-
 void Uxn_dump(T* uxn);
 
 #undef T
