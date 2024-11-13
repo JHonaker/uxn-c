@@ -1,136 +1,194 @@
 #include "uxn.h"
 #include "debug.h"
 #include <stdio.h>
+#include <stdlib.h>
 
-void initUxn(Uxn *uxn) {
-  for (int i = 0; i < 0x10000; i++) {
-    uxn->ram[i] = 0;
+inline int high_nibble(Byte byte) {
+  return (byte & 0xf0) >> 4;
+}
+
+inline int low_nibble(Byte byte) {
+  return byte & 0x0f;
+}
+
+struct Uxn {
+  Byte ram[RAM_SIZE];
+  Stack* work;
+  Stack* ret;
+};
+
+void Uxn_init(Uxn* uxn) {
+  if (uxn) {
+    *uxn = (Uxn) {
+      .ram = { 0 },
+      .work = Stack_new(),
+      .ret = Stack_new()
+    };
   }
-  Stack_init(&uxn->work);
-  Stack_init(&uxn->ret);
 }
 
-/**
- * Pushes a value onto the working stack of the given Uxn instance.
- *
- * @param uxn Pointer to the Uxn instance.
- * @param value The byte value to be pushed onto the working stack.
- */
-void Uxn_push_work(Uxn *uxn, Byte value) {
-  Stack_push(&uxn->work, value);
+void Uxn_destroy(Uxn* uxn) {
+  if (uxn) {
+    for (int i = 0; i < RAM_SIZE; i++) {
+      uxn->ram[i] = 0;
+    }
+
+    Stack_delete(uxn->work);
+    Stack_delete(uxn->ret);
+  }
 }
 
-/**
- * Pops a value from the working stack of the given Uxn instance.
- *
- * @param uxn Pointer to the Uxn instance.
- * 
- * @return The byte value popped from the working stack.
- */
-Byte Uxn_pop_work(Uxn *uxn) {
-  return Stack_pop(&uxn->work);
+Uxn* Uxn_new() {
+  Uxn* uxn = malloc(sizeof(Uxn));
+  Uxn_init(uxn);
+  return uxn;
 }
 
-/**
- * Peeks at a byte from the working stack at a given offset from the top.
- * 
- * @param uxn Pointer to the Uxn instance.
- * @param offset The offset from the top of the stack. 0 is the top of the stack.
- *
- * @return The byte value at the specified offset in the working stack.
- */
-Byte Uxn_peek_work_offset(Uxn *uxn, Byte offset) {
-  return Stack_peek_offset(&uxn->work, offset);
+void Uxn_delete(Uxn* uxn) {
+  if (uxn) {
+    Uxn_destroy(uxn);
+    free(uxn);
+  }
 }
 
-/**
- * Peeks at the top value in the working stack without removing it.
- * 
- * @param uxn Pointer to the Uxn instance.
- * 
- * @return The byte value at the top of the working stack.
- */
-Byte Uxn_peek_work(Uxn *uxn) {
-  return Stack_peek(&uxn->work);
+// Stack operations
+
+void Uxn_push_work(Uxn* uxn, Byte value) {
+  Stack_push(uxn->work, value);
 }
 
-/**
- * Push a value onto the Return stack
- * 
- * @param uxn Pointer to the Uxn virtual machine instance
- * @param value The byte value to push onto the Return stack
- * 
- * Adds a single byte value to the top of the Return stack. Used primarily
- * for function return addresses and temporary storage during subroutine calls.
- */
-void Uxn_push_ret(Uxn *uxn, Byte value) {
-  Stack_push(&uxn->ret, value);
+Byte Uxn_pop_work(Uxn* uxn) {
+  return Stack_pop(uxn->work);
 }
 
-/**
- * Pops and returns a value from the return stack of the Uxn virtual machine.
- *
- * @param uxn Pointer to the Uxn virtual machine instance
- * 
- * @return The byte value popped from the return stack
- */
-Byte Uxn_pop_ret(Uxn *uxn) {
-  return Stack_pop(&uxn->ret);
+Byte Uxn_peek_work_offset(Uxn* uxn, Byte offset) {
+  return Stack_peek_offset(uxn->work, offset);
 }
 
-/**
- * Peeks at the top value in the return stack without removing it.
- * 
- * @param uxn Pointer to the Uxn virtual machine instance
- * 
- * @return The byte value at the top of the return stack
- */
-Byte Uxn_peek_ret(Uxn *uxn) {
-  return Stack_peek(&uxn->ret);
+Byte Uxn_peek_work(Uxn* uxn) {
+  return Stack_peek(uxn->work);
 }
 
-/**
- * Evaluates the instruction at the given program counter.
- * 
- * @param uxn Pointer to the Uxn virtual machine instance
- * @param pc The program counter to evaluate
- * 
- * @return True if the instruction was successfully evaluated, false otherwise
- */
-bool Uxn_eval(Uxn *uxn, Short pc) {
+void Uxn_push_ret(Uxn* uxn, Byte value) {
+  Stack_push(uxn->ret, value);
+}
+
+Byte Uxn_pop_ret(Uxn* uxn) {
+  return Stack_pop(uxn->ret);
+}
+
+Byte Uxn_peek_ret(Uxn* uxn) {
+  return Stack_peek(uxn->ret);
+}
+
+// Op codes
+
+Byte Byte_div(Byte a, Byte b) {
+  if (b == 0) {
+    return 0;
+  }
+  
+  // To round toward zero
+  int sign = ((a < 0) ^ (b < 0)) ? -1 : 1;
+  return sign * (abs(a) / abs(b));
+}
+
+
+bool Uxn_eval(Uxn* uxn, Short pc) {
   Byte op = uxn->ram[pc];
 
   switch (op) {
-    case 0x80: // LIT
+    case 0x80: { // LIT ( -- a)
       Byte literal_value = Uxn_peek_work_offset(uxn, 1);
       Uxn_push_work(uxn, literal_value);
       return true;
-    case 0x00: // BRK
+    }
+    case 0x00: { // BRK ( -- )
       return true;
-    case 0x01: // INC
-      break;
+    }
+    case 0x01: { // INC (a -- a+1)
+      Byte popped = Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, popped + 1);
+      return true;
+    }
     // Stack manipulators
-    case 0x02: // POP
-      break;
-    case 0x03: // NIP
-      break;
-    case 0x04: // SWP
-      break;
-    case 0x05: // ROT
-      break;
-    case 0x06: // DUP
-      break;
-    case 0x07: // OVR
-      break;
+    case 0x02: { // POP (a -- )
+      Uxn_pop_work(uxn);
+      return true;
+    }
+    case 0x03: { // NIP (a b -- b)
+      Byte b = Uxn_pop_work(uxn);
+      Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, b);
+      return true;
+    }
+    case 0x04: { // SWP (a b -- b a)
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, b);
+      Uxn_push_work(uxn, a);
+      return true;
+    }
+    case 0x05: { // ROT (a b c -- b c a)
+      Byte c = Uxn_pop_work(uxn);
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, b);
+      Uxn_push_work(uxn, c);
+      Uxn_push_work(uxn, a);
+      return true;
+    }
+    case 0x06: { // DUP (a -- a a)
+      Byte a = Uxn_peek_work(uxn);
+      Uxn_push_work(uxn, a);
+      return true;
+    }
+    case 0x07: { // OVR (a b -- a b a)
+      Byte a = Uxn_peek_work_offset(uxn, 1);
+      Uxn_push_work(uxn, a);
+      return true;
+    }
     // Logical operators
-    case 0x08: // EQU
-      break;
-    case 0x09: // NEQ
-      break;
-    case 0x0a: // GTH
-      break;
-    case 0x0b: // LTH
-      break;
+    case 0x08: { // EQU (a b -- bool8)
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      if (a == b) {
+        Uxn_push_work(uxn, 0x01);
+      } else {
+        Uxn_push_work(uxn, 0x00);
+      }
+      return true;
+    }
+    case 0x09: { // NEQ (a b -- bool8)
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      if (a != b) {
+        Uxn_push_work(uxn, 0x01);
+      } else {
+        Uxn_push_work(uxn, 0x00);
+      }
+      return true;
+    }
+    case 0x0a: { // GTH (a b -- bool8)
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      if (a > b) {
+        Uxn_push_work(uxn, 0x01);
+      } else {
+        Uxn_push_work(uxn, 0x00);
+      }
+      return true;
+    }
+    case 0x0b: { // LTH (a b -- bool8)
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      if (a < b) {
+        Uxn_push_work(uxn, 0x01);
+      } else {
+        Uxn_push_work(uxn, 0x00);
+      }
+      return true;
+    }
     // Control flow
     case 0x0c: // JMP
       break;
@@ -138,8 +196,10 @@ bool Uxn_eval(Uxn *uxn, Short pc) {
       break;
     case 0x0e: // JSR
       break;
-    case 0x0f: // STH
-      break;
+    case 0x0f: // STH (a -- | a)
+      Byte a = Uxn_pop_work(uxn);
+      Uxn_push_ret(uxn, a);
+      return true;
     // Memory operations
     case 0x10: // LDZ
       break;
@@ -158,23 +218,56 @@ bool Uxn_eval(Uxn *uxn, Short pc) {
     case 0x17: // DEO
       break;
     // Arithmetic operations
-    case 0x18: // ADD
-      break;
-    case 0x19: // SUB
-      break;
-    case 0x1a: // MUL
-      break;
-    case 0x1b: // DIV
-      break;
+    case 0x18: { // ADD
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, a + b);
+      return true;
+    }
+    case 0x19: { // SUB
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, a - b);
+      return true;
+    }
+    case 0x1a: { // MUL
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, a * b);
+      return true;
+    }
+    case 0x1b: { // DIV
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, Byte_div(a, b));
+      return true;
+    }
     // Bitwise operations
-    case 0x1c: // AND
-      break;
-    case 0x1d: // ORA
-      break;
-    case 0x1e: // EOR
-      break;
-    case 0x1f: // SFT
-      break;
-
+    case 0x1c: { // AND (a b -- a & b)
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, a & b);
+      return true;
+    }
+    case 0x1d: { // ORA
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, a | b);
+      return true;
+    }
+    case 0x1e: { // EOR
+      Byte b = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      Uxn_push_work(uxn, a ^ b);
+      return true;
+    }
+    case 0x1f: { // SFT
+      Byte shiftByte = Uxn_pop_work(uxn);
+      Byte a = Uxn_pop_work(uxn);
+      int left_shift = high_nibble(shiftByte);
+      int right_shift = low_nibble(shiftByte);
+      Uxn_push_work(uxn, (a >> right_shift) << left_shift);
+      return true;
+    }
   }
 }
