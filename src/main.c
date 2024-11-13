@@ -32,3 +32,11 @@ int main(int argc, const char* argv[]) {
 
   return 0;
 }
+
+Byte Uxn_dei_dispatch(Byte page) {
+  return 0;
+}
+
+void Uxn_deo_dispatch(Byte page, Byte value) {
+  return;
+}
