@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+extern Byte Uxn_dei_dispatch(Byte page);
+extern void Uxn_deo_dispatch(Byte page, Byte value);
+
 int high_nibble(Byte byte) {
   return (byte & 0xf0) >> 4;
 }

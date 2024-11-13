@@ -114,8 +114,5 @@ bool Uxn_step(T* uxn);
 
 void Uxn_dump(T* uxn);
 
-extern Byte Uxn_dei_dispatch(Byte page);
-extern void Uxn_deo_dispatch(Byte page, Byte value);
-
 #undef T
 #endif // uxn_h
