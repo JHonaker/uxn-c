@@ -16,6 +16,8 @@ void Uxn_delete(T* uxn);
 
 // Stack operations
 
+void Uxn_stack_zero(T* uxn);
+
 /**
  * Pushes a value onto the working stack of the given Uxn instance.
  *
@@ -80,6 +82,9 @@ Byte Uxn_peek_ret(T* uxn);
 
 // Memory operations
 
+void Uxn_mem_zero(T* uxn, bool include_zero_page);
+
+void Uxn_mem_load(T* uxn, Byte* program, Short size, Short addr);
 Byte Uxn_mem_read(T* uxn, Short addr);
 Short Uxn_mem_read_short(T* uxn, Short addr);
 
@@ -89,6 +94,7 @@ void Uxn_mem_write(T* uxn, Short addr, Byte value);
 
 Byte Uxn_dev_read(T* uxn, Byte addr);
 void Uxn_dev_write(T* uxn, Byte addr, Byte value);
+void Uxn_dev_zero(Uxn* uxn);
 
 /**
  * Evaluates the instruction at the given program counter.

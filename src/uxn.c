@@ -1,6 +1,7 @@
 #include "uxn.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 extern Byte Uxn_dei_dispatch(Uxn* uxn, Byte addr);
 extern void Uxn_deo_dispatch(Uxn* uxn, Byte addr);
@@ -30,7 +31,7 @@ Byte opcode(Byte op) {
 }
 
 struct Uxn {
-  Byte ram[RAM_SIZE];
+  Byte ram[RAM_PAGE_SIZE * RAM_PAGES];
   Byte dev[DEV_PAGE_SIZE];
   Stack* work;
   Stack* ret;
@@ -49,7 +50,7 @@ void Uxn_init(Uxn* uxn) {
 
 void Uxn_destroy(Uxn* uxn) {
   if (uxn) {
-    for (int i = 0; i < RAM_SIZE; i++) {
+    for (int i = 0; i < RAM_PAGE_SIZE * RAM_PAGES; i++) {
       uxn->ram[i] = 0;
     }
     for (int i = 0; i < DEV_PAGE_SIZE; i++) {
@@ -74,6 +75,11 @@ void Uxn_delete(Uxn* uxn) {
 }
 
 // Stack operations
+
+void Uxn_stack_zero(Uxn* uxn) {
+  Stack_set_ptr(uxn->work, 0);
+  Stack_set_ptr(uxn->ret, 0);
+}
 
 void Uxn_push_work(Uxn* uxn, Byte value) {
   Stack_push(uxn->work, value);
@@ -105,6 +111,16 @@ Byte Uxn_peek_ret(Uxn* uxn) {
 
 // Memory operations
 
+void Uxn_mem_zero(Uxn* uxn, bool soft) {
+  for (int i = (soft ? RESET_VECTOR : 0); i < RAM_PAGE_SIZE * RAM_PAGES; i++) {
+    uxn->ram[i] = 0;
+  }
+}
+
+void Uxn_mem_load(Uxn* uxn, Byte* program, Short size, Short addr) {
+  memcpy(&uxn->ram[addr], program, size);
+}
+
 Byte Uxn_mem_read(Uxn* uxn, Short address) {
   return uxn->ram[address];
 }
@@ -118,6 +134,12 @@ void Uxn_mem_write(Uxn* uxn, Short address, Byte value) {
 }
 
 // Device operations
+
+void Uxn_dev_zero(Uxn* uxn) {
+  for (int i = 0; i < DEV_PAGE_SIZE; i++) {
+    uxn->dev[i] = 0;
+  }
+}
 
 Byte Uxn_dev_read(Uxn* uxn, Byte addr) {
   return uxn->dev[addr];
@@ -241,7 +263,7 @@ Short op_inc(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
  */
 Short op_pop(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mode) {
   if (keep_mode) return pc + 1;
-  
+
   Uxn_pop(uxn, return_mode);
   if (short_mode) Uxn_pop(uxn, return_mode);
 
