@@ -141,253 +141,261 @@ Byte Byte_div(Byte a, Byte b) {
 bool Uxn_eval(Uxn* uxn, Short pc) {
   Byte op = uxn->ram[pc];
 
-  switch (op) {
-    
-    case 0x80: { // LIT ( -- a)
-      Byte literal_value = Uxn_read_byte(uxn, pc + 1);
-      Uxn_push_work(uxn, literal_value);
-      pc += 2;
-      return true;
-    }
-    case 0x00: { // BRK ( -- )
-      return true;
-    }
-    case 0x01: { // INC (a -- a+1)
-      Byte popped = Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, popped + 1);
-      return true;
-    }
-    // Stack manipulators
-    case 0x02: { // POP (a -- )
-      Uxn_pop_work(uxn);
-      return true;
-    }
-    case 0x03: { // NIP (a b -- b)
-      Byte b = Uxn_pop_work(uxn);
-      Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, b);
-      return true;
-    }
-    case 0x04: { // SWP (a b -- b a)
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, b);
-      Uxn_push_work(uxn, a);
-      return true;
-    }
-    case 0x05: { // ROT (a b c -- b c a)
-      Byte c = Uxn_pop_work(uxn);
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, b);
-      Uxn_push_work(uxn, c);
-      Uxn_push_work(uxn, a);
-      return true;
-    }
-    case 0x06: { // DUP (a -- a a)
-      Byte a = Uxn_peek_work(uxn);
-      Uxn_push_work(uxn, a);
-      return true;
-    }
-    case 0x07: { // OVR (a b -- a b a)
-      Byte a = Uxn_peek_work_offset(uxn, 1);
-      Uxn_push_work(uxn, a);
-      return true;
-    }
-    // Logical operators
-    case 0x08: { // EQU (a b -- bool8)
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      if (a == b) {
-        Uxn_push_work(uxn, 0x01);
-      } else {
-        Uxn_push_work(uxn, 0x00);
-      }
-      return true;
-    }
-    case 0x09: { // NEQ (a b -- bool8)
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      if (a != b) {
-        Uxn_push_work(uxn, 0x01);
-      } else {
-        Uxn_push_work(uxn, 0x00);
-      }
-      return true;
-    }
-    case 0x0a: { // GTH (a b -- bool8)
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      if (a > b) {
-        Uxn_push_work(uxn, 0x01);
-      } else {
-        Uxn_push_work(uxn, 0x00);
-      }
-      return true;
-    }
-    case 0x0b: { // LTH (a b -- bool8)
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      if (a < b) {
-        Uxn_push_work(uxn, 0x01);
-      } else {
-        Uxn_push_work(uxn, 0x00);
-      }
-      return true;
-    }
-    // Control flow
-    case 0x0c: { // JMP (addr -- )
-      SignedByte rel_dist = (SignedByte) Uxn_pop_work(uxn);
-      pc += rel_dist;
-      return true;
-    }
-    case 0x0d: { // JCN (cond8 addr -- )
-      Byte addr = Uxn_pop_work(uxn);
-      Byte cond = Uxn_pop_work(uxn);
-      if (cond) {
-        // If the cond byte is not 00, moves the PC by the signed value of the
-        // addr byte
-        pc += (SignedByte) addr;
-      }
-      return true;
-    }
-    case 0x0e: { // JSR (addr -- | ret16)
-      Uxn_push_ret(uxn, pc + 2);
-      Short rel_addr = Uxn_read_short(uxn, pc + 1);
-      pc += (SignedShort) rel_addr;
-      return true;
-    }
-    case 0x0f: // STH (a -- | a)
-      Byte a = Uxn_pop_work(uxn);
-      Uxn_push_ret(uxn, a);
-      return true;
-    // Instant jumps
-    case 0x20: { // JCI (cond8 -- )
-      Byte cond = Uxn_pop_work(uxn);
-      if (cond) {
-        pc += (SignedShort) Uxn_read_short(uxn, pc + 1);
-      } else {
-        pc += 2;
-      }
-      return true;
-    }
-    case 0x40: { // JMI ( -- )
-      Short rel_addr = Uxn_read_short(uxn, pc + 1);
-      pc += (SignedShort) rel_addr;
-      return true;
-    }
-    case 0x60: { // JSI ( -- )
+  bool continue_execution = true;
+  int pc_increment = 1;
 
-      Short rel_addr = Uxn_read_short(uxn, pc + 1);
-      Uxn_push_ret(uxn, pc);
-      pc += (SignedShort) rel_addr;
-      return true;
+  while (continue_execution) {
+    switch (op) {
+      
+      case 0x80: { // LIT ( -- a)
+        Byte literal_value = Uxn_read_byte(uxn, pc + 1);
+        Uxn_push_work(uxn, literal_value);
+        pc_increment = 2;
+        break;
+      }
+      case 0x00: { // BRK ( -- )
+        continue_execution = false;
+        break;
+      }
+      case 0x01: { // INC (a -- a+1)
+        Byte popped = Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, popped + 1);
+        break;
+      }
+      // Stack manipulators
+      case 0x02: { // POP (a -- )
+        Uxn_pop_work(uxn);
+        break;
+      }
+      case 0x03: { // NIP (a b -- b)
+        Byte b = Uxn_pop_work(uxn);
+        Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, b);
+        break;
+      }
+      case 0x04: { // SWP (a b -- b a)
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, b);
+        Uxn_push_work(uxn, a);
+        break;
+      }
+      case 0x05: { // ROT (a b c -- b c a)
+        Byte c = Uxn_pop_work(uxn);
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, b);
+        Uxn_push_work(uxn, c);
+        Uxn_push_work(uxn, a);
+        break;
+      }
+      case 0x06: { // DUP (a -- a a)
+        Byte a = Uxn_peek_work(uxn);
+        Uxn_push_work(uxn, a);
+        break;
+      }
+      case 0x07: { // OVR (a b -- a b a)
+        Byte a = Uxn_peek_work_offset(uxn, 1);
+        Uxn_push_work(uxn, a);
+        break;
+      }
+      // Logical operators
+      case 0x08: { // EQU (a b -- bool8)
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        if (a == b) {
+          Uxn_push_work(uxn, 0x01);
+        } else {
+          Uxn_push_work(uxn, 0x00);
+        }
+        break;
+      }
+      case 0x09: { // NEQ (a b -- bool8)
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        if (a != b) {
+          Uxn_push_work(uxn, 0x01);
+        } else {
+          Uxn_push_work(uxn, 0x00);
+        }
+        break;
+      }
+      case 0x0a: { // GTH (a b -- bool8)
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        if (a > b) {
+          Uxn_push_work(uxn, 0x01);
+        } else {
+          Uxn_push_work(uxn, 0x00);
+        }
+        break;
+      }
+      case 0x0b: { // LTH (a b -- bool8)
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        if (a < b) {
+          Uxn_push_work(uxn, 0x01);
+        } else {
+          Uxn_push_work(uxn, 0x00);
+        }
+        break;
+      }
+      // Control flow
+      case 0x0c: { // JMP (addr -- )
+        SignedByte rel_dist = (SignedByte) Uxn_pop_work(uxn);
+        pc_increment = rel_dist;
+        break;
+      }
+      case 0x0d: { // JCN (cond8 addr -- )
+        Byte addr = Uxn_pop_work(uxn);
+        Byte cond = Uxn_pop_work(uxn);
+        if (cond) {
+          // If the cond byte is not 00, moves the PC by the signed value of the
+          // addr byte
+          pc_increment = (SignedByte) addr;
+        }
+        break;
+      }
+      case 0x0e: { // JSR (addr -- | ret16)
+        Uxn_push_ret(uxn, pc + 2);
+        Short rel_addr = Uxn_read_short(uxn, pc + 1);
+        pc_increment = (SignedShort) rel_addr;
+        break;
+      }
+      case 0x0f: // STH (a -- | a)
+        Byte a = Uxn_pop_work(uxn);
+        Uxn_push_ret(uxn, a);
+        break;
+      // Instant jumps
+      case 0x20: { // JCI (cond8 -- )
+        Byte cond = Uxn_pop_work(uxn);
+        if (cond) {
+          pc_increment = (SignedShort) Uxn_read_short(uxn, pc + 1);
+        } else {
+          pc_increment = 2;
+        }
+        break;
+      }
+      case 0x40: { // JMI ( -- )
+        Short rel_addr = Uxn_read_short(uxn, pc + 1);
+        pc_increment = (SignedShort) rel_addr;
+        break;
+      }
+      case 0x60: { // JSI ( -- )
+
+        Short rel_addr = Uxn_read_short(uxn, pc + 1);
+        Uxn_push_ret(uxn, pc);
+        pc_increment = (SignedShort) rel_addr;
+        break;
+      }
+      // Memory operations
+      case 0x10: { // LDZ (addr8 -- value)
+        Byte addr = Uxn_pop_work(uxn);
+        Byte value = Uxn_read_byte(uxn, addr);
+        Uxn_push_work(uxn, value);
+        break;
+      }
+      case 0x11: { // STZ (value addr8 -- )
+        Byte addr = Uxn_pop_work(uxn);
+        Byte value = Uxn_pop_work(uxn);
+        Uxn_write_byte(uxn, addr, value);
+        break;
+      }
+      case 0x12: { // LDR (addr8 -- value)
+        SignedByte rel_addr = Uxn_pop_work(uxn);
+        Byte value = Uxn_read_byte(uxn, pc + rel_addr);
+        Uxn_push_work(uxn, value);
+        break;
+      }
+      case 0x13: { // STR (value addr8 -- )
+        SignedByte rel_addr = Uxn_pop_work(uxn);
+        Byte value = Uxn_pop_work(uxn);
+        Uxn_write_byte(uxn, pc + rel_addr, value);
+        break;
+      }
+      case 0x14: { // LDA (addr16 -- value)
+        Byte low_byte = Uxn_pop_work(uxn);
+        Byte high_byte = Uxn_pop_work(uxn);
+        Short addr = (high_byte << 8) | low_byte;
+        Byte value = Uxn_read_byte(uxn, addr);
+        Uxn_push_work(uxn, value);
+        break;
+      }
+      case 0x15: { // STA (value addr16 -- )
+        Byte low_byte = Uxn_pop_work(uxn);
+        Byte high_byte = Uxn_pop_work(uxn);
+        Short addr = (high_byte << 8) | low_byte;
+        Byte value = Uxn_pop_work(uxn);
+        Uxn_write_byte(uxn, addr, value);
+        break;
+      }
+      case 0x16: { // DEI (device8 -- value)
+        Byte device_addr = Uxn_pop_work(uxn);
+        Byte value = Uxn_dei_dispatch(uxn, device_addr);
+        Uxn_push_work(uxn, value);
+        break;
+      }
+      case 0x17: { // DEO (value device8 -- value)
+        Byte device_addr = Uxn_pop_work(uxn);
+        Byte value = Uxn_pop_work(uxn);
+        Uxn_deo_dispatch(uxn, device_addr, value);
+        break;
+      }
+      // Arithmetic operations
+      case 0x18: { // ADD
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, a + b);
+        break;
+      }
+      case 0x19: { // SUB
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, a - b);
+        break;
+      }
+      case 0x1a: { // MUL
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, a * b);
+        break;
+      }
+      case 0x1b: { // DIV
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, Byte_div(a, b));
+        break;
+      }
+      // Bitwise operations
+      case 0x1c: { // AND (a b -- a & b)
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, a & b);
+        break;
+      }
+      case 0x1d: { // ORA
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, a | b);
+        break;
+      }
+      case 0x1e: { // EOR
+        Byte b = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        Uxn_push_work(uxn, a ^ b);
+        break;
+      }
+      case 0x1f: { // SFT
+        Byte shiftByte = Uxn_pop_work(uxn);
+        Byte a = Uxn_pop_work(uxn);
+        int left_shift = high_nibble(shiftByte);
+        int right_shift = low_nibble(shiftByte);
+        Uxn_push_work(uxn, (a >> right_shift) << left_shift);
+        break;
+      }
     }
-    // Memory operations
-    case 0x10: { // LDZ (addr8 -- value)
-      Byte addr = Uxn_pop_work(uxn);
-      Byte value = Uxn_read_byte(uxn, addr);
-      Uxn_push_work(uxn, value);
-      return true;
-    }
-    case 0x11: { // STZ (value addr8 -- )
-      Byte addr = Uxn_pop_work(uxn);
-      Byte value = Uxn_pop_work(uxn);
-      Uxn_write_byte(uxn, addr, value);
-      return true;
-    }
-    case 0x12: { // LDR (addr8 -- value)
-      SignedByte rel_addr = Uxn_pop_work(uxn);
-      Byte value = Uxn_read_byte(uxn, pc + rel_addr);
-      Uxn_push_work(uxn, value);
-      return true;
-    }
-    case 0x13: { // STR (value addr8 -- )
-      SignedByte rel_addr = Uxn_pop_work(uxn);
-      Byte value = Uxn_pop_work(uxn);
-      Uxn_write_byte(uxn, pc + rel_addr, value);
-      return true;
-    }
-    case 0x14: { // LDA (addr16 -- value)
-      Byte low_byte = Uxn_pop_work(uxn);
-      Byte high_byte = Uxn_pop_work(uxn);
-      Short addr = (high_byte << 8) | low_byte;
-      Byte value = Uxn_read_byte(uxn, addr);
-      Uxn_push_work(uxn, value);
-      return true;
-    }
-    case 0x15: { // STA (value addr16 -- )
-      Byte low_byte = Uxn_pop_work(uxn);
-      Byte high_byte = Uxn_pop_work(uxn);
-      Short addr = (high_byte << 8) | low_byte;
-      Byte value = Uxn_pop_work(uxn);
-      Uxn_write_byte(uxn, addr, value);
-      return true;
-    }
-    case 0x16: { // DEI (device8 -- value)
-      Byte device_addr = Uxn_pop_work(uxn);
-      Byte value = Uxn_dei_dispatch(uxn, device_addr);
-      Uxn_push_work(uxn, value);
-      return true;
-    }
-    case 0x17: { // DEO (value device8 -- value)
-      Byte device_addr = Uxn_pop_work(uxn);
-      Byte value = Uxn_pop_work(uxn);
-      Uxn_deo_dispatch(uxn, device_addr, value);
-      return true;
-    }
-    // Arithmetic operations
-    case 0x18: { // ADD
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, a + b);
-      return true;
-    }
-    case 0x19: { // SUB
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, a - b);
-      return true;
-    }
-    case 0x1a: { // MUL
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, a * b);
-      return true;
-    }
-    case 0x1b: { // DIV
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, Byte_div(a, b));
-      return true;
-    }
-    // Bitwise operations
-    case 0x1c: { // AND (a b -- a & b)
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, a & b);
-      return true;
-    }
-    case 0x1d: { // ORA
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, a | b);
-      return true;
-    }
-    case 0x1e: { // EOR
-      Byte b = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      Uxn_push_work(uxn, a ^ b);
-      return true;
-    }
-    case 0x1f: { // SFT
-      Byte shiftByte = Uxn_pop_work(uxn);
-      Byte a = Uxn_pop_work(uxn);
-      int left_shift = high_nibble(shiftByte);
-      int right_shift = low_nibble(shiftByte);
-      Uxn_push_work(uxn, (a >> right_shift) << left_shift);
-      return true;
-    }
+
+    pc += pc_increment;
   }
 }
 
