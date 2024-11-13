@@ -121,18 +121,15 @@ Byte Byte_div(Byte a, Byte b) {
   return sign * (abs(a) / abs(b));
 }
 
-Byte Uxn_current_op(Uxn* uxn) {
-  return uxn->ram[uxn->pc];
-}
-
-
 bool Uxn_eval(Uxn* uxn, Short pc) {
-  Byte op = Uxn_current_op(uxn);
+  Byte op = uxn->ram[uxn->pc];
 
   switch (op) {
+    
     case 0x80: { // LIT ( -- a)
       Byte literal_value = Uxn_read_next_byte(uxn);
       Uxn_push_work(uxn, literal_value);
+      uxn->pc += 2;
       return true;
     }
     case 0x00: { // BRK ( -- )
@@ -238,15 +235,37 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
       return true;
     }
     case 0x0e: { // JSR (addr -- | ret16)
-      Byte addr = Uxn_pop_work(uxn);
-      Uxn_push_ret(uxn, uxn->pc);
-      uxn->pc += (SignedByte) addr;
+      Uxn_push_ret(uxn, uxn->pc + 2);
+      Short rel_addr = Uxn_read_next_short(uxn);
+      uxn->pc += (SignedShort) rel_addr;
       return true;
     }
     case 0x0f: // STH (a -- | a)
       Byte a = Uxn_pop_work(uxn);
       Uxn_push_ret(uxn, a);
       return true;
+    // Instant jumps
+    case 0x20: { // JCI (cond8 -- )
+      Byte cond = Uxn_pop_work(uxn);
+      if (cond) {
+        uxn->pc += (SignedShort) Uxn_read_next_short(uxn);
+      } else {
+        uxn->pc += 2;
+      }
+      return true;
+    }
+    case 0x40: { // JMI ( -- )
+      Short rel_addr = Uxn_read_next_short(uxn);
+      uxn->pc += (SignedShort) rel_addr;
+      return true;
+    }
+    case 0x60: { // JSI ( -- )
+
+      Short rel_addr = Uxn_read_next_short(uxn);
+      Uxn_push_ret(uxn, uxn->pc);
+      uxn->pc += (SignedShort) rel_addr;
+      return true;
+    }
     // Memory operations
     case 0x10: { // LDZ (addr8 -- value)
       Byte addr = Uxn_pop_work(uxn);
