@@ -11,7 +11,7 @@ typedef struct T T;
 // Lifecycle management
 void Uxn_init(T* uxn);
 void Uxn_destroy(T* uxn);
-T *Uxn_new();
+T* Uxn_new();
 void Uxn_delete(T* uxn);
 
 // Stack operations
