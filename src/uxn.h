@@ -92,6 +92,11 @@ void Uxn_write_short(T* uxn, Short addr, Short value);
 
 // Interaction with the Uxn instance
 
+Byte Uxn_page_read_byte(T* uxn, Byte addr);
+Short Uxn_page_read_short(T* uxn, Byte addr);
+
+void Uxn_page_write_byte(T* uxn, Byte addr, Byte value);
+void Uxn_page_write_short(T* uxn, Byte addr, Short value);
 
 /**
  * Evaluates the instruction at the given program counter.

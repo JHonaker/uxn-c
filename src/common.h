@@ -15,6 +15,6 @@ typedef int16_t SignedShort;
 
 #define STACK_SIZE 0x100
 #define RAM_SIZE 0x10000
-
+#define DEV_PAGE_SIZE 0x10000
 
 #endif // uxn_common_h

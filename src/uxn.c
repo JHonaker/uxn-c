@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-extern Byte Uxn_dei_dispatch(Byte page);
-extern void Uxn_deo_dispatch(Byte page, Byte value);
+extern Byte Uxn_dei_dispatch(Uxn* uxn, Byte addr);
+extern void Uxn_deo_dispatch(Uxn* uxn, Byte addr, Byte value);
 
 int high_nibble(Byte byte) {
   return (byte & 0xf0) >> 4;
@@ -15,6 +15,7 @@ int low_nibble(Byte byte) {
 
 struct Uxn {
   Byte ram[RAM_SIZE];
+  Byte dev[DEV_PAGE_SIZE];
   Stack* work;
   Stack* ret;
   Short pc;
@@ -24,6 +25,7 @@ void Uxn_init(Uxn* uxn) {
   if (uxn) {
     *uxn = (Uxn) {
       .ram = { 0 },
+      .dev = { 0 },
       .work = Stack_new(),
       .ret = Stack_new(),
       .pc = RESET_VECTOR
@@ -35,6 +37,9 @@ void Uxn_destroy(Uxn* uxn) {
   if (uxn) {
     for (int i = 0; i < RAM_SIZE; i++) {
       uxn->ram[i] = 0;
+    }
+    for (int i = 0; i < DEV_PAGE_SIZE; i++) {
+      uxn->dev[i] = 0;
     }
     uxn->pc = 0;
     Stack_delete(uxn->work);
@@ -111,6 +116,26 @@ void Uxn_write_short(Uxn* uxn, Short address, Short value) {
   uxn->ram[address] = (value & 0xff00) >> 8;
   uxn->ram[address + 1] = value & 0x00ff;
 }
+
+// Device operations
+
+Byte Uxn_page_read_byte(Uxn* uxn, Byte addr) {
+  return uxn->dev[addr];
+}
+
+Short Uxn_page_read_short(Uxn* uxn, Byte addr) {
+  return (uxn->dev[addr] << 8) | uxn->dev[addr + 1];
+}
+
+void Uxn_page_write_byte(Uxn* uxn, Byte addr, Byte value) {
+  uxn->dev[addr] = value;
+}
+
+void Uxn_page_write_short(Uxn* uxn, Byte addr, Short value) {
+  uxn->dev[addr] = (value & 0xff00) >> 8;
+  uxn->dev[addr + 1] = value & 0x00ff;
+}
+
 
 // Op codes
 
@@ -312,14 +337,14 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
     }
     case 0x16: { // DEI (device8 -- value)
       Byte device_addr = Uxn_pop_work(uxn);
-      Byte value = Uxn_dei_dispatch(device_addr);
+      Byte value = Uxn_dei_dispatch(uxn, device_addr);
       Uxn_push_work(uxn, value);
       return true;
     }
     case 0x17: { // DEO (value device8 -- value)
       Byte device_addr = Uxn_pop_work(uxn);
       Byte value = Uxn_pop_work(uxn);
-      Uxn_deo_dispatch(device_addr, value);
+      Uxn_deo_dispatch(uxn, device_addr, value);
       return true;
     }
     // Arithmetic operations
