@@ -6,7 +6,9 @@
 #include <stdint.h>
 
 typedef uint8_t Byte;
+typedef int8_t SignedByte;
 typedef uint16_t Short;
+typedef int16_t SignedShort;
 
 #define ZERO_PAGE 0x00
 #define RESET_VECTOR 0x0100

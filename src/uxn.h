@@ -80,6 +80,14 @@ Byte Uxn_peek_ret(T* uxn);
 
 // Memory operations
 
+Byte Uxn_read_byte(T* uxn, Short addr);
+Short Uxn_read_short(T* uxn, Short addr);
+
+Byte Uxn_read_next_byte(T* uxn);
+Short Uxn_read_next_short(T* uxn);
+
+void Uxn_write_byte(T* uxn, Short addr, Byte value);
+void Uxn_write_short(T* uxn, Short addr, Short value);
 
 
 // Interaction with the Uxn instance

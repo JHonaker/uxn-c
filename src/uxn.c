@@ -82,6 +82,33 @@ Byte Uxn_peek_ret(Uxn* uxn) {
   return Stack_peek(uxn->ret);
 }
 
+// Memory operations
+
+Byte Uxn_read_byte(Uxn* uxn, Short address) {
+  return uxn->ram[address];
+}
+
+Short Uxn_read_short(Uxn* uxn, Short address) {
+  return (uxn->ram[address] << 8) | uxn->ram[address + 1];
+}
+
+Byte Uxn_read_next_byte(Uxn* uxn) {
+  return Uxn_read_byte(uxn, uxn->pc + 1);
+}
+
+Short Uxn_read_next_short(Uxn* uxn) {
+  return Uxn_read_short(uxn, uxn->pc + 1);
+}
+
+void Uxn_write_byte(Uxn* uxn, Short address, Byte value) {
+  uxn->ram[address] = value;
+}
+
+void Uxn_write_short(Uxn* uxn, Short address, Short value) {
+  uxn->ram[address] = (value & 0xff00) >> 8;
+  uxn->ram[address + 1] = value & 0x00ff;
+}
+
 // Op codes
 
 Byte Byte_div(Byte a, Byte b) {
@@ -94,13 +121,17 @@ Byte Byte_div(Byte a, Byte b) {
   return sign * (abs(a) / abs(b));
 }
 
+Byte Uxn_current_op(Uxn* uxn) {
+  return uxn->ram[uxn->pc];
+}
+
 
 bool Uxn_eval(Uxn* uxn, Short pc) {
-  Byte op = uxn->ram[pc];
+  Byte op = Uxn_current_op(uxn);
 
   switch (op) {
     case 0x80: { // LIT ( -- a)
-      Byte literal_value = Uxn_peek_work_offset(uxn, 1);
+      Byte literal_value = Uxn_read_next_byte(uxn);
       Uxn_push_work(uxn, literal_value);
       return true;
     }
@@ -191,29 +222,72 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
       return true;
     }
     // Control flow
-    case 0x0c: // JMP
-      break;
-    case 0x0d: // JCN
-      break;
-    case 0x0e: // JSR
-      break;
+    case 0x0c: { // JMP (addr -- )
+      SignedByte rel_dist = (SignedByte) Uxn_pop_work(uxn);
+      uxn->pc += rel_dist;
+      return true;
+    }
+    case 0x0d: { // JCN (cond8 addr -- )
+      Byte addr = Uxn_pop_work(uxn);
+      Byte cond = Uxn_pop_work(uxn);
+      if (cond) {
+        // If the cond byte is not 00, moves the PC by the signed value of the
+        // addr byte
+        uxn->pc += (SignedByte) addr;
+      }
+      return true;
+    }
+    case 0x0e: { // JSR (addr -- | ret16)
+      Byte addr = Uxn_pop_work(uxn);
+      Uxn_push_ret(uxn, uxn->pc);
+      uxn->pc += (SignedByte) addr;
+      return true;
+    }
     case 0x0f: // STH (a -- | a)
       Byte a = Uxn_pop_work(uxn);
       Uxn_push_ret(uxn, a);
       return true;
     // Memory operations
-    case 0x10: // LDZ
-      break;
-    case 0x11: // STZ
-      break;
-    case 0x12: // LDR
-      break;
-    case 0x13: // STR
-      break;
-    case 0x14: // LDA
-      break;
-    case 0x15: // STA
-      break;
+    case 0x10: { // LDZ (addr8 -- value)
+      Byte addr = Uxn_pop_work(uxn);
+      Byte value = Uxn_read_byte(uxn, addr);
+      Uxn_push_work(uxn, value);
+      return true;
+    }
+    case 0x11: { // STZ (value addr8 -- )
+      Byte addr = Uxn_pop_work(uxn);
+      Byte value = Uxn_pop_work(uxn);
+      Uxn_write_byte(uxn, addr, value);
+      return true;
+    }
+    case 0x12: { // LDR (addr8 -- value)
+      SignedByte rel_addr = Uxn_pop_work(uxn);
+      Byte value = Uxn_read_byte(uxn, uxn->pc + rel_addr);
+      Uxn_push_work(uxn, value);
+      return true;
+    }
+    case 0x13: { // STR (value addr8 -- )
+      SignedByte rel_addr = Uxn_pop_work(uxn);
+      Byte value = Uxn_pop_work(uxn);
+      Uxn_write_byte(uxn, uxn->pc + rel_addr, value);
+      return true;
+    }
+    case 0x14: { // LDA (addr16 -- value)
+      Byte low_byte = Uxn_pop_work(uxn);
+      Byte high_byte = Uxn_pop_work(uxn);
+      Short addr = (high_byte << 8) | low_byte;
+      Byte value = Uxn_read_byte(uxn, addr);
+      Uxn_push_work(uxn, value);
+      return true;
+    }
+    case 0x15: { // STA (value addr16 -- )
+      Byte low_byte = Uxn_pop_work(uxn);
+      Byte high_byte = Uxn_pop_work(uxn);
+      Short addr = (high_byte << 8) | low_byte;
+      Byte value = Uxn_pop_work(uxn);
+      Uxn_write_byte(uxn, addr, value);
+      return true;
+    }
     case 0x16: // DEI
       break;
     case 0x17: // DEO
