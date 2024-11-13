@@ -94,6 +94,12 @@ Byte Stack_peek_offset(T* stack, Byte offset);
  */
 Byte Stack_peek(T* stack);
 
+/**
+ * @brief Dump the stack to the console.
+ * 
+ * @param stack Pointer to the stack.
+ */
+void Stack_dump(T* stack, const char* name);
 
 #undef T
 #endif // STACK_H

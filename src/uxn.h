@@ -95,5 +95,16 @@ Byte Uxn_peek_ret(T* uxn);
  */
 bool Uxn_eval(T* uxn, Short pc);
 
+/**
+ * Steps the Uxn virtual machine instance.
+ * 
+ * @param uxn Pointer to the Uxn virtual machine instance
+ * 
+ * @return True if the Uxn virtual machine instance successfully stepped, false otherwise
+ */
+bool Uxn_step(T* uxn);
+
+void Uxn_dump(T* uxn);
+
 #undef T
 #endif // uxn_h

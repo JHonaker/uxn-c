@@ -1,13 +1,12 @@
 #include "uxn.h"
-#include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-inline int high_nibble(Byte byte) {
+int high_nibble(Byte byte) {
   return (byte & 0xf0) >> 4;
 }
 
-inline int low_nibble(Byte byte) {
+int low_nibble(Byte byte) {
   return byte & 0x0f;
 }
 
@@ -15,6 +14,7 @@ struct Uxn {
   Byte ram[RAM_SIZE];
   Stack* work;
   Stack* ret;
+  Short pc;
 };
 
 void Uxn_init(Uxn* uxn) {
@@ -22,7 +22,8 @@ void Uxn_init(Uxn* uxn) {
     *uxn = (Uxn) {
       .ram = { 0 },
       .work = Stack_new(),
-      .ret = Stack_new()
+      .ret = Stack_new(),
+      .pc = START_PC
     };
   }
 }
@@ -32,7 +33,7 @@ void Uxn_destroy(Uxn* uxn) {
     for (int i = 0; i < RAM_SIZE; i++) {
       uxn->ram[i] = 0;
     }
-
+    uxn->pc = 0;
     Stack_delete(uxn->work);
     Stack_delete(uxn->ret);
   }
@@ -269,5 +270,21 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
       Uxn_push_work(uxn, (a >> right_shift) << left_shift);
       return true;
     }
+  }
+}
+
+bool Uxn_step(Uxn* uxn) {
+  if (uxn) {
+    if (Uxn_eval(uxn, uxn->pc)) {
+      uxn->pc++;
+      return true;
+    }
+  }
+}
+
+void Uxn_dump(Uxn* uxn) {
+  if (uxn) {
+    Stack_dump(uxn->work, "WORK");
+    Stack_dump(uxn->ret, "RET");
   }
 }

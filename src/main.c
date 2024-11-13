@@ -2,7 +2,6 @@
 
 #include "common.h"
 #include "uxn.h"
-#include "debug.h"
 
 int main(int argc, const char* argv[]) {
   Uxn* uxn = Uxn_new();
@@ -18,12 +17,12 @@ int main(int argc, const char* argv[]) {
 
     printf("\nBefore pop\n\n");
 
-    dumpUxn(uxn);
+    Uxn_dump(uxn);
 
     printf("\nAfter pop\n\n");
     Uxn_pop_work(uxn);
 
-    dumpUxn(uxn);
+    Uxn_dump(uxn);
 
 
     should_continue = false;

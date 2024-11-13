@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "stack.h"
 
@@ -75,4 +76,13 @@ Byte Stack_peek_offset(Stack* stack, Byte offset) {
 
 Byte Stack_peek(Stack* stack) {
   return Stack_peek_offset(stack, 0);
+}
+
+void Stack_dump(Stack* stack, const char* name) {
+  printf("== %s ==\n", name);
+  for (int i = 0; i < stack->ptr; i++) {
+    printf("%04x: ", i);
+    printf("%d", stack->data[i]);
+    printf("\n");
+  }
 }
