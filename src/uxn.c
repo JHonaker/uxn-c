@@ -288,10 +288,18 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
       Uxn_write_byte(uxn, addr, value);
       return true;
     }
-    case 0x16: // DEI
-      break;
-    case 0x17: // DEO
-      break;
+    case 0x16: { // DEI (device8 -- value)
+      Byte device_addr = Uxn_pop_work(uxn);
+      Byte value = Uxn_dei_dispatch(device_addr);
+      Uxn_push_work(uxn, value);
+      return true;
+    }
+    case 0x17: { // DEO (value device8 -- value)
+      Byte device_addr = Uxn_pop_work(uxn);
+      Byte value = Uxn_pop_work(uxn);
+      Uxn_deo_dispatch(device_addr, value);
+      return true;
+    }
     // Arithmetic operations
     case 0x18: { // ADD
       Byte b = Uxn_pop_work(uxn);
