@@ -78,6 +78,14 @@ Byte Stack_peek(Stack* stack) {
   return Stack_peek_offset(stack, 0);
 }
 
+void Stack_set_ptr(Stack* stack, Byte ptr) {
+  stack->ptr = ptr;
+}
+
+Byte Stack_get_ptr(Stack* stack) {
+  return stack->ptr;
+}
+
 void Stack_dump(Stack* stack, const char* name) {
   printf("== %s ==\n", name);
   for (int i = 0; i < stack->ptr; i++) {

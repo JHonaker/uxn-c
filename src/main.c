@@ -6,37 +6,36 @@
 int main(int argc, const char* argv[]) {
   Uxn* uxn = Uxn_new();
 
-  bool should_continue = true;
   Short pc = RESET_VECTOR;
 
-  while (should_continue) {
-    //should_continue = uxn_eval(&uxn, pc);
+  Uxn_push_work(uxn, 0x80);
+  Uxn_push_ret(uxn, 0x80);
 
-    Uxn_push_work(uxn, 0x80);
-    Uxn_push_ret(uxn, 0x80);
+  printf("\nBefore pop\n\n");
 
-    printf("\nBefore pop\n\n");
+  Uxn_dump(uxn);
 
-    Uxn_dump(uxn);
+  printf("\nAfter pop\n\n");
+  Uxn_pop_work(uxn);
 
-    printf("\nAfter pop\n\n");
-    Uxn_pop_work(uxn);
+  Uxn_dump(uxn);
 
-    Uxn_dump(uxn);
+  Uxn_pop_ret(uxn);
 
+  Uxn_mem_write(uxn, RESET_VECTOR, 0x00);
 
-    should_continue = false;
-  }
+  Uxn_eval(uxn, RESET_VECTOR);
+  printf("\n After eval! \n\n");
 
-
+  Uxn_delete(uxn);
 
   return 0;
 }
 
-Byte Uxn_dei_dispatch(Byte page) {
-  return 0;
+Byte Uxn_dei_dispatch(Uxn* uxn, Byte addr) {
+  return Uxn_dev_read(uxn, addr);
 }
 
-void Uxn_deo_dispatch(Byte page, Byte value) {
+void Uxn_deo_dispatch(Uxn* uxn, Byte addr) {
   return;
 }

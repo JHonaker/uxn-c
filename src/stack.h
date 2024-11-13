@@ -95,6 +95,22 @@ Byte Stack_peek_offset(T* stack, Byte offset);
 Byte Stack_peek(T* stack);
 
 /**
+ * @brief Set the stack pointer to a specific value.
+ * 
+ * @param stack Pointer to the stack.
+ * @param ptr The value to set the stack pointer to.
+ */
+void Stack_set_ptr(T* stack, Byte ptr);
+
+/**
+ * @brief Get the stack pointer.
+ * 
+ * @param stack Pointer to the stack.
+ * @return The value of the stack pointer.
+ */
+Byte Stack_get_ptr(T* stack);
+
+/**
  * @brief Dump the stack to the console.
  * 
  * @param stack Pointer to the stack.

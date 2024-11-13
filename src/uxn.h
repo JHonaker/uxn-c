@@ -80,20 +80,15 @@ Byte Uxn_peek_ret(T* uxn);
 
 // Memory operations
 
-Byte Uxn_read_byte(T* uxn, Short addr);
-Short Uxn_read_short(T* uxn, Short addr);
+Byte Uxn_mem_read(T* uxn, Short addr);
+Short Uxn_mem_read_short(T* uxn, Short addr);
 
-void Uxn_write_byte(T* uxn, Short addr, Byte value);
-void Uxn_write_short(T* uxn, Short addr, Short value);
-
+void Uxn_mem_write(T* uxn, Short addr, Byte value);
 
 // Interaction with the Uxn instance
 
-Byte Uxn_page_read_byte(T* uxn, Byte addr);
-Short Uxn_page_read_short(T* uxn, Byte addr);
-
-void Uxn_page_write_byte(T* uxn, Byte addr, Byte value);
-void Uxn_page_write_short(T* uxn, Byte addr, Short value);
+Byte Uxn_dev_read(T* uxn, Byte addr);
+void Uxn_dev_write(T* uxn, Byte addr, Byte value);
 
 /**
  * Evaluates the instruction at the given program counter.
