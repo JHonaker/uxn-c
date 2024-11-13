@@ -7,7 +7,7 @@ int main(int argc, const char* argv[]) {
   Uxn* uxn = Uxn_new();
 
   bool should_continue = true;
-  Short pc = START_PC;
+  Short pc = RESET_VECTOR;
 
   while (should_continue) {
     //should_continue = uxn_eval(&uxn, pc);

@@ -9,7 +9,7 @@ typedef uint8_t Byte;
 typedef uint16_t Short;
 
 #define ZERO_PAGE 0x00
-#define START_PC 0x0100
+#define RESET_VECTOR 0x0100
 
 #define STACK_SIZE 0x100
 #define RAM_SIZE 0x10000

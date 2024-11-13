@@ -23,7 +23,7 @@ void Uxn_init(Uxn* uxn) {
       .ram = { 0 },
       .work = Stack_new(),
       .ret = Stack_new(),
-      .pc = START_PC
+      .pc = RESET_VECTOR
     };
   }
 }
