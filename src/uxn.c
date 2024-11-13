@@ -18,7 +18,6 @@ struct Uxn {
   Byte dev[DEV_PAGE_SIZE];
   Stack* work;
   Stack* ret;
-  Short pc;
 };
 
 void Uxn_init(Uxn* uxn) {
@@ -28,7 +27,6 @@ void Uxn_init(Uxn* uxn) {
       .dev = { 0 },
       .work = Stack_new(),
       .ret = Stack_new(),
-      .pc = RESET_VECTOR
     };
   }
 }
@@ -41,7 +39,6 @@ void Uxn_destroy(Uxn* uxn) {
     for (int i = 0; i < DEV_PAGE_SIZE; i++) {
       uxn->dev[i] = 0;
     }
-    uxn->pc = 0;
     Stack_delete(uxn->work);
     Stack_delete(uxn->ret);
   }
@@ -100,14 +97,6 @@ Short Uxn_read_short(Uxn* uxn, Short address) {
   return (uxn->ram[address] << 8) | uxn->ram[address + 1];
 }
 
-Byte Uxn_read_next_byte(Uxn* uxn) {
-  return Uxn_read_byte(uxn, uxn->pc + 1);
-}
-
-Short Uxn_read_next_short(Uxn* uxn) {
-  return Uxn_read_short(uxn, uxn->pc + 1);
-}
-
 void Uxn_write_byte(Uxn* uxn, Short address, Byte value) {
   uxn->ram[address] = value;
 }
@@ -150,14 +139,14 @@ Byte Byte_div(Byte a, Byte b) {
 }
 
 bool Uxn_eval(Uxn* uxn, Short pc) {
-  Byte op = uxn->ram[uxn->pc];
+  Byte op = uxn->ram[pc];
 
   switch (op) {
     
     case 0x80: { // LIT ( -- a)
-      Byte literal_value = Uxn_read_next_byte(uxn);
+      Byte literal_value = Uxn_read_byte(uxn, pc + 1);
       Uxn_push_work(uxn, literal_value);
-      uxn->pc += 2;
+      pc += 2;
       return true;
     }
     case 0x00: { // BRK ( -- )
@@ -249,7 +238,7 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
     // Control flow
     case 0x0c: { // JMP (addr -- )
       SignedByte rel_dist = (SignedByte) Uxn_pop_work(uxn);
-      uxn->pc += rel_dist;
+      pc += rel_dist;
       return true;
     }
     case 0x0d: { // JCN (cond8 addr -- )
@@ -258,14 +247,14 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
       if (cond) {
         // If the cond byte is not 00, moves the PC by the signed value of the
         // addr byte
-        uxn->pc += (SignedByte) addr;
+        pc += (SignedByte) addr;
       }
       return true;
     }
     case 0x0e: { // JSR (addr -- | ret16)
-      Uxn_push_ret(uxn, uxn->pc + 2);
-      Short rel_addr = Uxn_read_next_short(uxn);
-      uxn->pc += (SignedShort) rel_addr;
+      Uxn_push_ret(uxn, pc + 2);
+      Short rel_addr = Uxn_read_short(uxn, pc + 1);
+      pc += (SignedShort) rel_addr;
       return true;
     }
     case 0x0f: // STH (a -- | a)
@@ -276,22 +265,22 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
     case 0x20: { // JCI (cond8 -- )
       Byte cond = Uxn_pop_work(uxn);
       if (cond) {
-        uxn->pc += (SignedShort) Uxn_read_next_short(uxn);
+        pc += (SignedShort) Uxn_read_short(uxn, pc + 1);
       } else {
-        uxn->pc += 2;
+        pc += 2;
       }
       return true;
     }
     case 0x40: { // JMI ( -- )
-      Short rel_addr = Uxn_read_next_short(uxn);
-      uxn->pc += (SignedShort) rel_addr;
+      Short rel_addr = Uxn_read_short(uxn, pc + 1);
+      pc += (SignedShort) rel_addr;
       return true;
     }
     case 0x60: { // JSI ( -- )
 
-      Short rel_addr = Uxn_read_next_short(uxn);
-      Uxn_push_ret(uxn, uxn->pc);
-      uxn->pc += (SignedShort) rel_addr;
+      Short rel_addr = Uxn_read_short(uxn, pc + 1);
+      Uxn_push_ret(uxn, pc);
+      pc += (SignedShort) rel_addr;
       return true;
     }
     // Memory operations
@@ -309,14 +298,14 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
     }
     case 0x12: { // LDR (addr8 -- value)
       SignedByte rel_addr = Uxn_pop_work(uxn);
-      Byte value = Uxn_read_byte(uxn, uxn->pc + rel_addr);
+      Byte value = Uxn_read_byte(uxn, pc + rel_addr);
       Uxn_push_work(uxn, value);
       return true;
     }
     case 0x13: { // STR (value addr8 -- )
       SignedByte rel_addr = Uxn_pop_work(uxn);
       Byte value = Uxn_pop_work(uxn);
-      Uxn_write_byte(uxn, uxn->pc + rel_addr, value);
+      Uxn_write_byte(uxn, pc + rel_addr, value);
       return true;
     }
     case 0x14: { // LDA (addr16 -- value)
@@ -404,8 +393,7 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
 
 bool Uxn_step(Uxn* uxn) {
   if (uxn) {
-    if (Uxn_eval(uxn, uxn->pc)) {
-      uxn->pc++;
+    if (Uxn_eval(uxn, RESET_VECTOR)) {
       return true;
     }
   }
