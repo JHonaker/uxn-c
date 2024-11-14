@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PAGE_ADDR(page, addr) ((page) * RAM_PAGE_SIZE + (addr))
+#define PAGE_ADDR(page, addr) (((page) * RAM_PAGE_SIZE + (addr)) & (RAM_PAGE_SIZE - 1))
 
 extern Byte Uxn_dei_dispatch(Uxn* uxn, Byte addr);
 extern void Uxn_deo_dispatch(Uxn* uxn, Byte addr);
@@ -145,14 +145,25 @@ Byte Uxn_pop(Uxn* uxn, bool from_return_stack) {
 
 // Memory operations
 
+Byte Uxn_page_read(Uxn* uxn, Short page, Short addr) {
+  return uxn->ram[PAGE_ADDR(page, addr)];
+}
+
+void Uxn_page_load(Uxn* uxn, Byte program[], unsigned long size, Short page, Short addr) {
+  memcpy(&uxn->ram[PAGE_ADDR(page, addr)], program, size);
+}
+
+void Uxn_page_write(Uxn* uxn, Short page, Short addr, Byte value) {
+  uxn->ram[PAGE_ADDR(page, addr)] = value;
+}
 void Uxn_mem_zero(Uxn* uxn, bool soft) {
   for (int i = (soft ? RESET_VECTOR : 0); i < RAM_PAGE_SIZE * RAM_PAGES; i++) {
     uxn->ram[i] = 0;
   }
 }
 
-void Uxn_mem_load(Uxn* uxn, Byte* program, unsigned long size, Short addr) {
-  memcpy(&uxn->ram[addr], program, size);
+void Uxn_mem_load(Uxn* uxn, Byte program[], unsigned long size, Short addr) {
+  return Uxn_page_load(uxn, program, size, 0, addr);
 }
 
 Byte Uxn_mem_read(Uxn* uxn, Short address) {
@@ -167,13 +178,26 @@ void Uxn_mem_write(Uxn* uxn, Short address, Byte value) {
   uxn->ram[address] = value;
 }
 
-Byte Uxn_page_read(Uxn* uxn, Short page, Short addr) {
-  return uxn->ram[PAGE_ADDR(page, addr)];
+Byte Uxn_zero_page_read(Uxn* uxn, Byte address) {
+  return uxn->ram[address & (RESET_VECTOR - 1)];
 }
 
-void Uxn_page_write(Uxn* uxn, Short page, Short addr, Byte value) {
-  uxn->ram[PAGE_ADDR(page, addr)] = value;
+Short Uxn_zero_page_read_short(Uxn* uxn, Byte address) {
+  Byte high = uxn->ram[address & (RESET_VECTOR - 1)];
+  Byte low = uxn->ram[(address + 1) & (RESET_VECTOR - 1)];
+  return (high << 8) | low;
 }
+
+void Uxn_zero_page_write(Uxn* uxn, Byte address, Byte value) {
+  uxn->ram[address & (RESET_VECTOR - 1)] = value;
+}
+
+void Uxn_zero_page_write_short(Uxn* uxn, Byte address, Short value) {
+  uxn->ram[address & (RESET_VECTOR - 1)] = value >> 8;
+  uxn->ram[(address + 1) & (RESET_VECTOR - 1)] = value & 0xff;
+}
+
+
 
 // Device operations
 
