@@ -629,7 +629,7 @@ Short op_jmp(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
 
     if (keep_mode) Stack_set_ptr(stack, ptr);
 
-    return pc + rel_addr + 2;
+    return pc + rel_addr;
   }
 }
 
@@ -662,7 +662,7 @@ Short op_jcn(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     if (keep_mode) Stack_set_ptr(stack, ptr);
 
     // Otherwise jump by a relative address
-    return test_byte != 0x00 ? pc + rel_addr + 2 : pc;
+    return test_byte != 0x00 ? pc + rel_addr : pc;
   }
 }
 
@@ -694,7 +694,7 @@ Short op_jsr(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
 
     if (keep_mode) Stack_set_ptr(stack, ptr);
 
-    return pc + rel_addr + 2;
+    return pc + rel_addr;
   }
 }
 
