@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define PAGE_ADDR(page, addr) ((page) * RAM_PAGE_SIZE + (addr))
+
 extern Byte Uxn_dei_dispatch(Uxn* uxn, Byte addr);
 extern void Uxn_deo_dispatch(Uxn* uxn, Byte addr);
 
@@ -163,6 +165,14 @@ Short Uxn_mem_read_short(Uxn* uxn, Short address) {
 
 void Uxn_mem_write(Uxn* uxn, Short address, Byte value) {
   uxn->ram[address] = value;
+}
+
+Byte Uxn_page_read(Uxn* uxn, Short page, Short addr) {
+  return uxn->ram[PAGE_ADDR(page, addr)];
+}
+
+void Uxn_page_write(Uxn* uxn, Short page, Short addr, Byte value) {
+  uxn->ram[PAGE_ADDR(page, addr)] = value;
 }
 
 // Device operations
@@ -1316,6 +1326,8 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
       default: break;
     }
   }
+
+  return 0;
 }
 
 void Uxn_dump(Uxn* uxn) {

@@ -94,6 +94,9 @@ Short Uxn_mem_read_short(T* uxn, Short addr);
 
 void Uxn_mem_write(T* uxn, Short addr, Byte value);
 
+Byte Uxn_page_read(T* uxn, Short page, Short addr);
+void Uxn_page_write(T* uxn, Short page, Short addr, Byte value);
+
 // Interaction with the Uxn instance
 
 Byte Uxn_dev_read(T* uxn, Byte addr);
