@@ -1,32 +1,34 @@
-#include "minunit.h"
+#include "greatest.h"
 #include "../src/common.h"
 #include "../src/stack.h"
 
-mu_suite_start();
+SUITE(stack);
 
-static char *test_push() {
-  Stack stack;
-  Stack_init(&stack);
-  Stack_push(&stack, 0x80);
-  mu_assert(Stack_peek(&stack) == 0x80, "error, stack[0] != 0x80");
-  return 0;
+TEST test_push() {
+  Stack* stack = Stack_new();
+  Stack_init(stack);
+  Stack_push(stack, 0x80);
+  ASSERT(Stack_peek(stack) == 0x80);
+
+  Stack_delete(stack);
+  
+  PASS();
 }
 
-static char *test_pop() {
-  Stack stack;
-  Stack_init(&stack);
-  Stack_push(&stack, 0x80);
-  Stack_push(&stack, 0x81);
-  Byte popped = Stack_pop(&stack);
-  mu_assert(popped == 0x81, "error, stack[0] != 0x81");
-  mu_assert(Stack_peek(&stack) == 0x80, "error, stack[0] != 0x80");
-  return 0;
+TEST test_pop() {
+  Stack* stack = Stack_new();
+  Stack_init(stack);
+  Stack_push(stack, 0x80);
+  Stack_push(stack, 0x81);
+  Byte popped = Stack_pop(stack);
+  ASSERT(popped == 0x81);
+  ASSERT(Stack_peek(stack) == 0x80);
+
+  Stack_delete(stack);
+  PASS();
 }
 
-static char *all_tests() {
-  mu_run_test(test_push);
-  mu_run_test(test_pop);
-  return 0;
+SUITE(stack) {
+  RUN_TEST(test_push);
+  RUN_TEST(test_pop);
 }
-
-RUN_TESTS(all_tests);

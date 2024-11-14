@@ -1,55 +1,61 @@
 #include <stdio.h>
 #include "../src/common.h"
 #include "../src/uxn.h"
-#include "minunit.h"
+#include "greatest.h"
 
-mu_suite_start();
+SUITE(uxn);
 
-static char *test_push_work() {
-  Uxn uxn;
-  initUxn(&uxn);
-  Uxn_push_work(&uxn, 0x80);
-  mu_assert(Uxn_peek_work(&uxn) == 0x80, "error, work.stack[0] != 0x80");
-  return 0;
+TEST test_push_work() {
+  Uxn* uxn = Uxn_new();
+  Uxn_push_work(uxn, 0x80);
+  
+  ASSERT(Uxn_peek_work(uxn) == 0x80);
+
+  Uxn_delete(uxn);
+
+  PASS();
 }
 
-static char *test_pop_work() {
-  Uxn uxn;
-  initUxn(&uxn);
-  Uxn_push_work(&uxn, 0x80);
-  Uxn_push_work(&uxn, 0x81);
-  Byte popped = Uxn_pop_work(&uxn);
-  mu_assert(popped == 0x81, "error, work.stack[0] != 0x81");
-  mu_assert(Uxn_peek_work(&uxn) == 0x80, "error, work.stack[0] != 0x80");
-  return 0;
+TEST test_pop_work() {
+  Uxn* uxn = Uxn_new();
+  Uxn_push_work(uxn, 0x80);
+  Uxn_push_work(uxn, 0x81);
+  Byte popped = Uxn_pop_work(uxn);
+  ASSERT(popped == 0x81);
+  ASSERT(Uxn_peek_work(uxn) == 0x80);
+  
+  Uxn_delete(uxn);
+
+  PASS();
 }
 
-static char *test_push_ret() {
-  Uxn uxn;
-  initUxn(&uxn);
-  Uxn_push_ret(&uxn, 0x80);
-  mu_assert(Uxn_peek_ret(&uxn) == 0x80, "error, ret.stack[0] != 0x80");
-  return 0;
+TEST test_push_ret() {
+  Uxn* uxn = Uxn_new();
+  Uxn_push_ret(uxn, 0x80);
+  ASSERT(Uxn_peek_ret(uxn) == 0x80);
+  
+  Uxn_delete(uxn);
+
+  PASS();
 }
 
-static char *test_pop_ret() {
-  Uxn uxn;
-  initUxn(&uxn);
-  Uxn_push_ret(&uxn, 0x80);
-  Uxn_push_ret(&uxn, 0x81);
-  Byte popped = Uxn_pop_ret(&uxn);
-  mu_assert(popped == 0x81, "error, ret.stack[0] != 0x81");
-  mu_assert(Uxn_peek_ret(&uxn) == 0x80, "error, ret.stack[0] != 0x80");
-  return 0;
+TEST test_pop_ret() {
+  Uxn* uxn = Uxn_new();
+  Uxn_push_ret(uxn, 0x80);
+  Uxn_push_ret(uxn, 0x81);
+  Byte popped = Uxn_pop_ret(uxn);
+  ASSERT(popped == 0x81);
+  ASSERT(Uxn_peek_ret(uxn) == 0x80);
+  
+  Uxn_delete(uxn);
+
+  PASS();
 }
 
-static char *all_tests() {
-  mu_run_test(test_push_work);
-  mu_run_test(test_pop_work);
-  mu_run_test(test_push_ret);
-  mu_run_test(test_pop_ret);
-  return 0;
+SUITE(uxn) {
+  RUN_TEST(test_push_work);
+  RUN_TEST(test_pop_work);
+  RUN_TEST(test_push_ret);
+  RUN_TEST(test_pop_ret);
 }
-
-RUN_TESTS(all_tests);
 
