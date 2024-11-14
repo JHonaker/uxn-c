@@ -201,7 +201,7 @@ void Uxn_dev_write(Uxn* uxn, Byte addr, Byte value) {
  */
 Short op_jmi(Uxn* uxn, Short pc) {
   Short rel_addr = Uxn_mem_read_short(uxn, pc);
-  return pc + (SignedShort) rel_addr;
+  return pc + (SignedShort) rel_addr + 2;
 }
 
 /**
@@ -216,7 +216,7 @@ Short op_jsi(Uxn* uxn, Short pc) {
   Uxn_push_ret(uxn, to_push >> 8);
   Uxn_push_ret(uxn, to_push & 0xff);
   Short rel_addr = Uxn_mem_read_short(uxn, pc);
-  return pc + (SignedShort) rel_addr;
+  return pc + (SignedShort) rel_addr + 2;
 }
 
 /**
@@ -230,7 +230,7 @@ Short op_jci(Uxn* uxn, Short pc) {
   Byte cond = Uxn_pop_work(uxn);
   if (cond) {
     Short rel_addr = Uxn_mem_read_short(uxn, pc);
-    return pc + (SignedShort) rel_addr;
+    return pc + (SignedShort) rel_addr + 2;
   } else {
     return pc + 2;
   }
@@ -629,7 +629,7 @@ Short op_jmp(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
 
     if (keep_mode) Stack_set_ptr(stack, ptr);
 
-    return pc + rel_addr;
+    return pc + rel_addr + 2;
   }
 }
 
@@ -662,7 +662,7 @@ Short op_jcn(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     if (keep_mode) Stack_set_ptr(stack, ptr);
 
     // Otherwise jump by a relative address
-    return test_byte != 0x00 ? pc + rel_addr : pc;
+    return test_byte != 0x00 ? pc + rel_addr + 2 : pc;
   }
 }
 
@@ -694,7 +694,7 @@ Short op_jsr(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
 
     if (keep_mode) Stack_set_ptr(stack, ptr);
 
-    return pc + rel_addr;
+    return pc + rel_addr + 2;
   }
 }
 
