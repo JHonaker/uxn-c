@@ -88,7 +88,7 @@ Byte Uxn_peek_ret(T* uxn);
 
 void Uxn_mem_zero(T* uxn, bool include_zero_page);
 
-void Uxn_mem_load(T* uxn, Byte* program, Short size, Short addr);
+void Uxn_mem_load(T* uxn, Byte* program, unsigned long size, Short addr);
 Byte Uxn_mem_read(T* uxn, Short addr);
 Short Uxn_mem_read_short(T* uxn, Short addr);
 

@@ -149,7 +149,7 @@ void Uxn_mem_zero(Uxn* uxn, bool soft) {
   }
 }
 
-void Uxn_mem_load(Uxn* uxn, Byte* program, Short size, Short addr) {
+void Uxn_mem_load(Uxn* uxn, Byte* program, unsigned long size, Short addr) {
   memcpy(&uxn->ram[addr], program, size);
 }
 
