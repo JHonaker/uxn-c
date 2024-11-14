@@ -890,7 +890,9 @@ Short op_sta(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
   Stack* stack = return_mode ? uxn->ret : uxn->work;
   Byte ptr = Stack_get_ptr(stack);
 
-  Short addr = Uxn_pop(uxn, return_mode);
+  Byte low = Uxn_pop(uxn, return_mode);
+  Byte high = Uxn_pop(uxn, return_mode);
+  Short addr = (high << 8) | low;
 
   if (short_mode) {
     Byte low_a = Uxn_pop(uxn, return_mode);
