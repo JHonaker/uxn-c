@@ -18,7 +18,7 @@ int main(int argc, const char* argv[]) {
 }
 
 Byte Uxn_dei_dispatch(Uxn* uxn, Byte addr) {
-  const Byte page = addr & 0x0f;
+  const Byte page = addr & 0xf0;
   switch (page) {
     case 0x00: return system_dei(uxn, addr);
     default: return Uxn_dev_read(uxn, addr);
@@ -26,7 +26,7 @@ Byte Uxn_dei_dispatch(Uxn* uxn, Byte addr) {
 }
 
 void Uxn_deo_dispatch(Uxn* uxn, Byte addr) {
-  const Byte page = addr & 0x0f;
+  const Byte page = addr & 0xf0;
   switch (page) {
     case 0x00: return system_deo(uxn, addr);
     default: return;
