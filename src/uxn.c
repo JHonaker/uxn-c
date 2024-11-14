@@ -190,7 +190,7 @@ void Uxn_dev_write(Uxn* uxn, Byte addr, Byte value) {
  * memory. This opcode has no modes.
  */
 Short op_jmi(Uxn* uxn, Short pc) {
-  Short rel_addr = Uxn_mem_read_short(uxn, pc + 1);
+  Short rel_addr = Uxn_mem_read_short(uxn, pc);
   return pc + (SignedShort) rel_addr;
 }
 
@@ -201,8 +201,11 @@ Short op_jmi(Uxn* uxn, Short pc) {
  * distance equal to the next short in memory. This opcode has no modes.
  */
 Short op_jsi(Uxn* uxn, Short pc) {
-  Uxn_push_ret(uxn, pc + 2);
-  Short rel_addr = Uxn_mem_read_short(uxn, pc + 1);
+  // TODO: Check if this is correct
+  Short to_push = pc + 2;
+  Uxn_push_ret(uxn, to_push >> 8);
+  Uxn_push_ret(uxn, to_push & 0xff);
+  Short rel_addr = Uxn_mem_read_short(uxn, pc);
   return pc + (SignedShort) rel_addr;
 }
 
@@ -216,7 +219,7 @@ Short op_jsi(Uxn* uxn, Short pc) {
 Short op_jci(Uxn* uxn, Short pc) {
   Byte cond = Uxn_pop_work(uxn);
   if (cond) {
-    Short rel_addr = Uxn_mem_read_short(uxn, pc + 1);
+    Short rel_addr = Uxn_mem_read_short(uxn, pc);
     return pc + (SignedShort) rel_addr;
   } else {
     return pc + 2;
@@ -230,16 +233,16 @@ Short op_jci(Uxn* uxn, Short pc) {
  * has the keep mode active.
  */
 Short op_lit(Uxn* uxn, Short pc, bool return_mode, bool short_mode) {
-  Byte literal_value = Uxn_mem_read(uxn, pc + 1);
+  Byte literal_value = Uxn_mem_read(uxn, pc);
   Uxn_push(uxn, literal_value, return_mode);
 
   if (short_mode) {
-    literal_value = Uxn_mem_read(uxn, pc + 2);
+    literal_value = Uxn_mem_read(uxn, pc + 1);
     Uxn_push(uxn, literal_value, return_mode);
-    return pc + 3;
+    return pc + 2;
   }
 
-  return pc + 2;
+  return pc + 1;
 }
 
 /**
@@ -269,7 +272,7 @@ Short op_inc(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a + 1, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -278,12 +281,12 @@ Short op_inc(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
  * Removes the value at the top of the stack
  */
 Short op_pop(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mode) {
-  if (keep_mode) return pc + 1;
+  if (keep_mode) return pc;
 
   Uxn_pop(uxn, return_mode);
   if (short_mode) Uxn_pop(uxn, return_mode);
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -313,7 +316,7 @@ Short op_nip(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, b, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -347,7 +350,7 @@ Short op_swp(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -387,7 +390,7 @@ Short op_rot(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -418,7 +421,7 @@ Short op_dup(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 
@@ -456,7 +459,7 @@ Short op_ovr(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -488,7 +491,7 @@ Short op_equ(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
 
   Uxn_push(uxn, result ? 0x01 : 0x00, return_mode);
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -520,7 +523,7 @@ Short op_neq(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
 
   Uxn_push(uxn, result ? 0x01 : 0x00, return_mode);
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -554,7 +557,7 @@ Short op_gth(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
 
   Uxn_push(uxn, result ? 0x01 : 0x00, return_mode);
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -588,7 +591,7 @@ Short op_lth(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
 
   Uxn_push(uxn, result ? 0x01 : 0x00, return_mode);
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -640,14 +643,16 @@ Short op_jcn(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     
     if (keep_mode) Stack_set_ptr(stack, ptr);
 
-    return test_byte != 0x00 ? addr : pc + 1;
+    // In short mode, jump to an absolute address
+    return test_byte != 0x00 ? addr : pc;
   } else {
     SignedByte rel_addr = Uxn_pop(uxn, return_mode);
     Byte test_byte = Uxn_pop(uxn, return_mode);
 
     if (keep_mode) Stack_set_ptr(stack, ptr);
 
-    return test_byte != 0x00 ? pc + rel_addr : pc + 1;
+    // Otherwise jump by a relative address
+    return test_byte != 0x00 ? pc + rel_addr : pc;
   }
 }
 
@@ -710,7 +715,7 @@ Short op_sth(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a, !return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -738,7 +743,7 @@ Short op_ldz(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -768,7 +773,7 @@ Short op_stz(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_mem_write(uxn, addr, a);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /** 
@@ -798,7 +803,7 @@ Short op_ldr(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /** 
@@ -833,7 +838,7 @@ Short op_str(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_mem_write(uxn, store_addr, a);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /** 
@@ -860,7 +865,7 @@ Short op_lda(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -890,7 +895,7 @@ Short op_sta(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_mem_write(uxn, addr, a);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -924,7 +929,7 @@ Short op_dei(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -962,7 +967,7 @@ Short op_deo(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_deo_dispatch(uxn, addr);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -997,7 +1002,7 @@ Short op_add(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a + b, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -1033,7 +1038,7 @@ Short op_sub(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a - b, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -1068,7 +1073,7 @@ Short op_mul(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a * b, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -1113,7 +1118,7 @@ Short op_div(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     }
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -1144,7 +1149,7 @@ Short op_and(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a & b, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -1175,7 +1180,7 @@ Short op_ora(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a | b, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -1206,7 +1211,7 @@ Short op_eor(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, a ^ b, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 /**
@@ -1247,11 +1252,12 @@ Short op_sft(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
     Uxn_push(uxn, result, return_mode);
   }
 
-  return pc + 1;
+  return pc;
 }
 
 bool Uxn_eval(Uxn* uxn, Short pc) {
   Byte full_op = uxn->ram[pc];
+  pc += 1;
 
   bool continue_execution = true;
 
