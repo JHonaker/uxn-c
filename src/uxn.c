@@ -109,6 +109,22 @@ Byte Uxn_peek_ret(Uxn* uxn) {
   return Stack_peek(uxn->ret);
 }
 
+void Uxn_push(Uxn* uxn, Byte value, bool to_return_stack) {
+  if (to_return_stack) {
+    Uxn_push_ret(uxn, value);
+  } else {
+    Uxn_push_work(uxn, value);
+  }
+}
+
+Byte Uxn_pop(Uxn* uxn, bool from_return_stack) {
+  if (from_return_stack) {
+    return Uxn_pop_ret(uxn);
+  } else {
+    return Uxn_pop_work(uxn);
+  }
+}
+
 // Memory operations
 
 void Uxn_mem_zero(Uxn* uxn, bool soft) {
@@ -188,22 +204,6 @@ Short op_jci(Uxn* uxn, Short pc) {
     return pc + (SignedShort) rel_addr;
   } else {
     return pc + 2;
-  }
-}
-
-void Uxn_push(Uxn* uxn, Byte value, bool to_return_stack) {
-  if (to_return_stack) {
-    Uxn_push_ret(uxn, value);
-  } else {
-    Uxn_push_work(uxn, value);
-  }
-}
-
-Byte Uxn_pop(Uxn* uxn, bool from_return_stack) {
-  if (from_return_stack) {
-    return Uxn_pop_ret(uxn);
-  } else {
-    return Uxn_pop_work(uxn);
   }
 }
 
