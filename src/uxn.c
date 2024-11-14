@@ -81,6 +81,22 @@ void Uxn_stack_zero(Uxn* uxn) {
   Stack_set_ptr(uxn->ret, 0);
 }
 
+Byte Uxn_work_ptr(Uxn* uxn) {
+  return Stack_get_ptr(uxn->work);
+}
+
+Byte Uxn_ret_ptr(Uxn* uxn) {
+  return Stack_get_ptr(uxn->ret);
+}
+
+void Uxn_set_work_ptr(Uxn* uxn, Byte ptr) {
+  Stack_set_ptr(uxn->work, ptr);
+}
+
+void Uxn_set_ret_ptr(Uxn* uxn, Byte ptr) {
+  Stack_set_ptr(uxn->ret, ptr);
+}
+
 void Uxn_push_work(Uxn* uxn, Byte value) {
   Stack_push(uxn->work, value);
 }

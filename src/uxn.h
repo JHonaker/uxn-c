@@ -17,6 +17,10 @@ void Uxn_delete(T* uxn);
 // Stack operations
 
 void Uxn_stack_zero(T* uxn);
+Byte Uxn_work_ptr(T* uxn);
+Byte Uxn_ret_ptr(T* uxn);
+void Uxn_set_work_ptr(T* uxn, Byte ptr);
+void Uxn_set_ret_ptr(T* uxn, Byte ptr);
 
 /**
  * Pushes a value onto the working stack of the given Uxn instance.
