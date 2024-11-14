@@ -1266,28 +1266,28 @@ Short op_sft(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
 }
 
 bool Uxn_eval(Uxn* uxn, Short pc) {
-  Byte full_op = uxn->ram[pc];
-  pc += 1;
 
   bool continue_execution = true;
 
   while (continue_execution) {
-
+    Byte full_op = uxn->ram[pc];
+    pc += 1;
+    
     Byte keep_mode = is_keep_mode(full_op);
     Byte ret_mode = is_return_mode(full_op);
     Byte short_mode = is_short_mode(full_op);
     Byte op = opcode(full_op);
-    
+
     // Immediate ops
     switch (full_op) {
-      case 0x00: continue_execution = false; break; // BRK
-      case 0x20: pc = op_jci(uxn, pc); break;
-      case 0x40: pc = op_jmi(uxn, pc); break;
-      case 0x60: pc = op_jsi(uxn, pc); break;
-      case 0x80: pc = op_lit(uxn, pc, false, false); break;
-      case 0xa0: pc = op_lit(uxn, pc, false, true); break;
-      case 0xc0: pc = op_lit(uxn, pc, true, false); break;
-      case 0xe0: pc = op_lit(uxn, pc, true, true); break;
+      case 0x00: continue_execution = false; continue; // BRK
+      case 0x20: pc = op_jci(uxn, pc); continue;
+      case 0x40: pc = op_jmi(uxn, pc); continue;
+      case 0x60: pc = op_jsi(uxn, pc); continue;
+      case 0x80: pc = op_lit(uxn, pc, false, false); continue;
+      case 0xa0: pc = op_lit(uxn, pc, false, true); continue;
+      case 0xc0: pc = op_lit(uxn, pc, true, false); continue;
+      case 0xe0: pc = op_lit(uxn, pc, true, true); continue;
       default: break;
     }
 
@@ -1332,7 +1332,7 @@ bool Uxn_eval(Uxn* uxn, Short pc) {
 
 void Uxn_dump(Uxn* uxn) {
   if (uxn) {
-    Stack_dump(uxn->work, "WORK");
-    Stack_dump(uxn->ret, "RET");
+    Stack_dump(uxn->work, "WST");
+    Stack_dump(uxn->ret, "RST");
   }
 }

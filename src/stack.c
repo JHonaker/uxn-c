@@ -87,10 +87,13 @@ Byte Stack_get_ptr(Stack* stack) {
 }
 
 void Stack_dump(Stack* stack, const char* name) {
-  printf("== %s ==\n", name);
-  for (int i = 0; i < stack->ptr; i++) {
-    printf("%04x: ", i);
-    printf("%d", stack->data[i]);
-    printf("\n");
+
+  const int print_depth = 8;
+  printf("%s ", name);
+
+  for (int i = stack->ptr - print_depth; i < stack->ptr; i++) {
+    printf("%02x", stack->data[i % STACK_SIZE]);
+    printf(i == -1 ? "|" : " ");
   }
+  printf("<\n");
 }
