@@ -21,6 +21,8 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
 CFLAGS := -Wall -Wextra # -Werror
 
+DEBUG_FLAGS := -g
+
 TEST_DIR := test
 TEST_SRCS := $(shell find $(TEST_DIR) -name '*.c' -or -name '*.s')
 TEST_OBJS := $(TEST_SRCS:%=$(BUILD_DIR)/%.o)
@@ -47,6 +49,10 @@ build/test/%: %.c.o
 build/test/%.c.o: %.c
 	mkdir -p $(dir $@)
 	$(CC) $(INC_FLAGS) $(CFLAGS) -c $< -o $@
+
+.PHONY: debug
+debug: CFLAGS += $(DEBUG_FLAGS)
+debug: clean all
 
 .PHONY: test
 test: $(TEST_EXEC)
