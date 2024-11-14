@@ -678,7 +678,8 @@ Short op_jsr(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
   Stack* stack = return_mode ? uxn->ret : uxn->work;
   Byte ptr = Stack_get_ptr(stack);
   
-  Uxn_push(uxn, pc, !return_mode);
+  Uxn_push(uxn, pc >> 8, !return_mode);
+  Uxn_push(uxn, pc & 0xff, !return_mode);
 
   if (short_mode) {
     Byte low_addr = Uxn_pop(uxn, return_mode);
@@ -860,7 +861,9 @@ Short op_lda(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
   Stack* stack = return_mode ? uxn->ret : uxn->work;
   Byte ptr = Stack_get_ptr(stack);
 
-  Short addr = Uxn_pop(uxn, return_mode);
+  Byte low = Uxn_pop(uxn, return_mode);
+  Byte high = Uxn_pop(uxn, return_mode);
+  Short addr = (high << 8) | low;
 
   if (keep_mode) Stack_set_ptr(stack, ptr);
 
