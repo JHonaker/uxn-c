@@ -768,11 +768,10 @@ Short op_ldz(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
   if (keep_mode) Stack_set_ptr(stack, ptr);
 
   if (short_mode) {
-    Byte high_a = Uxn_mem_read(uxn, addr);
-    Byte low_a = Uxn_mem_read(uxn, addr + 1);
+    Short a = Uxn_zero_page_read_short(uxn, addr);
 
-    Uxn_push(uxn, high_a, return_mode);
-    Uxn_push(uxn, low_a, return_mode);
+    Uxn_push(uxn, a >> 8, return_mode);
+    Uxn_push(uxn, a & 0xff, return_mode);
   } else {
     Byte a = Uxn_mem_read(uxn, addr);
     Uxn_push(uxn, a, return_mode);
@@ -798,14 +797,13 @@ Short op_stz(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
 
     if (keep_mode) Stack_set_ptr(stack, ptr);
 
-    Uxn_mem_write(uxn, addr, high_a);
-    Uxn_mem_write(uxn, addr + 1, low_a);
+    Uxn_zero_page_write_short(uxn, addr, (high_a << 8) | low_a);
   } else {
     Byte a = Uxn_pop(uxn, return_mode);
 
     if (keep_mode) Stack_set_ptr(stack, ptr);
 
-    Uxn_mem_write(uxn, addr, a);
+    Uxn_zero_page_write(uxn, addr, a);
   }
 
   return pc;
