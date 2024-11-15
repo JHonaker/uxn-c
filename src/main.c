@@ -19,6 +19,23 @@ void handle_input(Uxn* uxn, RaylibScreen* screen) {
   handle_keyboard(uxn, screen);
 }
 
+Byte Uxn_dei_dispatch(Uxn* uxn, Byte addr) {
+  const Byte page = addr & 0xf0;
+  switch (page) {
+    case 0x00: return system_dei(uxn, addr);
+    default: return Uxn_dev_read(uxn, addr);
+  }
+}
+
+void Uxn_deo_dispatch(Uxn* uxn, Byte addr) {
+  const Byte page = addr & 0xf0;
+  switch (page) {
+    case 0x00: system_deo(uxn, addr); break;
+    case 0x10: console_deo(uxn, addr); break;
+    default: break;
+  }
+}
+
 int main(int argc, const char* argv[]) {
   Uxn* uxn = Uxn_new();
 
@@ -50,19 +67,3 @@ int main(int argc, const char* argv[]) {
   return 0;
 }
 
-Byte Uxn_dei_dispatch(Uxn* uxn, Byte addr) {
-  const Byte page = addr & 0xf0;
-  switch (page) {
-    case 0x00: return system_dei(uxn, addr);
-    default: return Uxn_dev_read(uxn, addr);
-  }
-}
-
-void Uxn_deo_dispatch(Uxn* uxn, Byte addr) {
-  const Byte page = addr & 0xf0;
-  switch (page) {
-    case 0x00: system_deo(uxn, addr); break;
-    case 0x10: console_deo(uxn, addr); break;
-    default: break;
-  }
-}
