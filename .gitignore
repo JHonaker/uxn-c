@@ -3,3 +3,4 @@ build/
 test_roms/
 *.o
 .ccls-cache/
+etc/
