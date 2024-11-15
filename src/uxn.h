@@ -9,9 +9,9 @@
 typedef struct T T;
 
 // Lifecycle management
-void Uxn_init(T* uxn);
+void Uxn_init(T* uxn, void* screen);
 void Uxn_destroy(T* uxn);
-T* Uxn_new();
+T* Uxn_new(void* screen);
 void Uxn_delete(T* uxn);
 
 // Stack operations
@@ -102,6 +102,8 @@ void Uxn_page_write(T* uxn, Short page, Short addr, Byte value);
 Byte Uxn_dev_read(T* uxn, Byte addr);
 void Uxn_dev_write(T* uxn, Byte addr, Byte value);
 void Uxn_dev_zero(Uxn* uxn);
+
+void* Uxn_get_screen(T* uxn);
 
 /**
  * Evaluates the instruction at the given program counter.

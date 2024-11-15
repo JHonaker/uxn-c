@@ -37,15 +37,17 @@ struct Uxn {
   Byte dev[DEV_PAGE_SIZE];
   Stack* work;
   Stack* ret;
+  void* screen;
 };
 
-void Uxn_init(Uxn* uxn) {
+void Uxn_init(Uxn* uxn, void* screen) {
   if (uxn) {
     *uxn = (Uxn) {
       .ram = { 0 },
       .dev = { 0 },
       .work = Stack_new(),
       .ret = Stack_new(),
+      .screen = screen
     };
   }
 }
@@ -63,9 +65,13 @@ void Uxn_destroy(Uxn* uxn) {
   }
 }
 
-Uxn* Uxn_new() {
+void* Uxn_get_screen(Uxn* uxn) {
+  return uxn->screen;
+}
+
+Uxn* Uxn_new(void* screen) {
   Uxn* uxn = malloc(sizeof(Uxn));
-  Uxn_init(uxn);
+  Uxn_init(uxn, screen);
   return uxn;
 }
 
@@ -950,8 +956,8 @@ Short op_dei(Uxn* uxn, Short pc, bool keep_mode, bool return_mode, bool short_mo
   if (keep_mode) Stack_set_ptr(stack, ptr);
 
   if (short_mode) {
-    Byte low_a = Uxn_dev_read(uxn, addr);
-    Byte high_a = Uxn_dev_read(uxn, addr + 1);
+    Byte high_a = Uxn_dev_read(uxn, addr);
+    Byte low_a = Uxn_dev_read(uxn, addr + 1);
 
     Uxn_dei_dispatch(uxn, addr);
     Uxn_dei_dispatch(uxn, addr + 1);
