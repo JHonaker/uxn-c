@@ -1,5 +1,5 @@
 .vscode/
 build/
-src/test_roms/
+test_roms/
 *.o
 .ccls-cache/
