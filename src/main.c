@@ -58,7 +58,7 @@ int main(int argc, const char* argv[]) {
   // Good example in `man getopt 3`
 
 
-  ScreenT* screen = screen_new(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, 2);
+  ScreenT* screen = screen_new(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, 1);
   
   Uxn* uxn = Uxn_new(screen);
 

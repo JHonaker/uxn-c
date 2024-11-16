@@ -100,7 +100,9 @@ void Uxn_page_write(T* uxn, Short page, Short addr, Byte value);
 // Interaction with the Uxn instance
 
 Byte Uxn_dev_read(T* uxn, Byte addr);
+Short Uxn_dev_read_short(T* uxn, Byte addr);
 void Uxn_dev_write(T* uxn, Byte addr, Byte value);
+void Uxn_dev_write_short(T* uxn, Byte addr, Short value);
 void Uxn_dev_zero(Uxn* uxn);
 
 void* Uxn_get_screen(T* uxn);

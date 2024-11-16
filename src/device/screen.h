@@ -18,6 +18,11 @@
 #define SCREEN_PIXEL_PORT 0x2e
 #define SCREEN_SPRITE_PORT 0x2f
 
+#define SPRITE_WIDTH 8
+#define SPRITE_HEIGHT 8
+#define SPRITE_1BPP_BUFFER_SIZE 8
+#define SPRITE_2BPP_BUFFER_SIZE 16
+
 #define T RaylibScreen
 #define ScreenT RaylibScreen
 
@@ -44,7 +49,7 @@ typedef enum {
 struct T {
   RenderTexture2D bg_buffer;
   RenderTexture2D fg_buffer;
-  Byte sprite_buffer[8];
+  RenderTexture2D sprite_buffer;
   Short width;
   Short height;
   int scale;

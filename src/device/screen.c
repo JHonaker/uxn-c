@@ -1,11 +1,22 @@
 #include <raylib.h>
 #include <rlgl.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "system.h"
 #include "screen.h"
-#include "stdlib.h"
+
 
 #define T RaylibScreen
+
+// From the Varvara spec:
+// c = !ch ? (color % 5 ? color >> 2 : 0) : color % 4 + ch == 1 ? 0 : (ch - 2 + (color & 3)) % 3 + 1;
+static const Byte blending[4][16] = {
+  {0, 0, 0, 0, 1, 0, 1, 1, 2, 2, 0, 2, 3, 3, 3, 0},
+  {0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
+  {1, 2, 3, 1, 1, 2, 3, 1, 1, 2, 3, 1, 1, 2, 3, 1},
+  {2, 3, 1, 2, 2, 3, 1, 2, 2, 3, 1, 2, 2, 3, 1, 2}
+};
 
 void screen_init(T* screen, int width, int height, int scale) {
   InitWindow(width * scale, height * scale, "Uxn");
@@ -13,7 +24,7 @@ void screen_init(T* screen, int width, int height, int scale) {
   *screen = (T) {
     .bg_buffer = LoadRenderTexture(width, height),
     .fg_buffer = LoadRenderTexture(width, height),
-    .sprite_buffer = {0},
+    .sprite_buffer = LoadRenderTexture(SPRITE_WIDTH, SPRITE_HEIGHT),
     .width = width,
     .height = height,
     .scale = scale,
@@ -36,6 +47,7 @@ void screen_destroy(T* screen) {
   
   UnloadRenderTexture(screen->fg_buffer);
   UnloadRenderTexture(screen->bg_buffer);
+  UnloadRenderTexture(screen->sprite_buffer);
   
   CloseWindow();
 }
@@ -100,6 +112,14 @@ static Color pixel_color(Color palette[], Byte control) {
   return (color == 0 && fg_layer) ? BLANK : palette[color];
 }
 
+static Color sprite_color(Color palette[], Byte control, int color_number) {
+  Byte fg_layer = control & 0x40;
+  Byte blend_mode = control & 0x0f;
+
+  Byte color = blending[color_number][blend_mode];
+
+  return (color_number == 0 && fg_layer) ? BLANK : palette[color];
+}
 
 void screen_pixel_port(Uxn* uxn, T* screen) {
   Byte control = Uxn_dev_read(uxn, SCREEN_PIXEL_PORT);
@@ -124,7 +144,7 @@ void screen_pixel_port(Uxn* uxn, T* screen) {
   Byte auto_y = auto_byte & 0x02;
 
   Color draw_color = pixel_color(screen->palette, control);
-  
+
   BeginTextureMode(layer_texture);
   BeginBlendMode(BLEND_CUSTOM);
 
@@ -154,6 +174,122 @@ void screen_pixel_port(Uxn* uxn, T* screen) {
     y++;
     Uxn_dev_write(uxn, SCREEN_Y_PORT, y >> 8);
     Uxn_dev_write(uxn, SCREEN_Y_PORT + 1, y & 0xff);
+  }
+}
+
+void read_sprite(Uxn* uxn, RenderTexture2D buffer, int size, Byte control, Color palette[]) {
+  Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
+
+  Byte sprite_data[SPRITE_1BPP_BUFFER_SIZE] = {0};
+  for (int i = 0; i < size; i++) {
+    sprite_data[i] = Uxn_mem_read(uxn, addr + i);
+  }
+
+  BeginTextureMode(buffer);
+  BeginBlendMode(BLEND_CUSTOM);
+
+  ClearBackground(BLANK);
+
+  for (int j = 0; j < SPRITE_HEIGHT; j++) {
+    Byte row = sprite_data[j];
+    for (int i = 0; i < SPRITE_WIDTH; i++) {
+      int shift = (SPRITE_WIDTH - 1) - i;
+      Byte bit = (row >> shift) & 0x01;
+      
+      Color color = sprite_color(palette, control, bit);
+      DrawPixel(i, j, color);
+    }
+  }
+
+  EndBlendMode();
+  EndTextureMode();
+}
+
+static void shift_sprite_addr(Uxn* uxn, bool two_bit_mode) {
+  Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
+  addr += two_bit_mode ? 16 : 8;
+  Uxn_dev_write_short(uxn, SCREEN_ADDR_PORT, addr);
+}
+
+void screen_draw_one_bit(Uxn* uxn, T* screen, Byte control) {
+  Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT); 
+  Short y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
+
+  Byte flip_x = control & 0x10;
+  Byte flip_y = control & 0x20;
+  Byte color = control & 0xf;
+
+  Byte auto_byte = Uxn_dev_read(uxn, SCREEN_AUTO_PORT);
+  Byte auto_x = auto_byte & 0x01;
+  Byte auto_y = auto_byte & 0x02;
+
+  int dirX = flip_x ? -1 : 1;
+  int dirY = flip_y ? -1 : 1;
+
+  Byte auto_addr = auto_byte & 0x04;
+  Byte auto_length = (auto_byte & 0xf0) >> 4;
+
+  Byte fg_layer = control & 0x40;
+  RenderTexture2D layer_texture = fg_layer ? screen->fg_buffer : screen->bg_buffer;
+
+  // Read sprite data
+  read_sprite(uxn, screen->sprite_buffer, SPRITE_1BPP_BUFFER_SIZE, control,
+              screen->palette);
+
+  // The definition of dx and dy looks confusing
+  // because of the test for auto_y in dx and vice versa.
+  //
+  // This is intended!
+  //
+  // According to the Varvara spec, extra sprites are drawn as columns moving
+  // rightward for auto-x and as rows moving downward for auto-y
+  float dx = auto_y ? dirX * SPRITE_WIDTH : 0;
+  float dy = auto_x ? dirY * SPRITE_HEIGHT : 0;
+
+  for (int i = 0; i <= auto_length; i++) {
+    BeginTextureMode(layer_texture);
+    BeginBlendMode(BLEND_CUSTOM);
+    DrawTexturePro(screen->sprite_buffer.texture,
+                   (Rectangle){0, 0, dirX * SPRITE_WIDTH, dirY * -SPRITE_HEIGHT},
+                   (Rectangle){x + i * dx,
+                               y + i * dy,
+                               SPRITE_WIDTH,
+                               SPRITE_HEIGHT},
+                   (Vector2){0, 0}, 0, WHITE);
+   
+    EndBlendMode();
+    EndTextureMode();
+
+    if (auto_addr) {
+      shift_sprite_addr(uxn, false);
+      read_sprite(uxn, screen->sprite_buffer, SPRITE_1BPP_BUFFER_SIZE, control,
+                  screen->palette);
+    }
+  }
+
+  if (auto_x) {
+    x += dirX * SPRITE_WIDTH;
+    Uxn_dev_write_short(uxn, SCREEN_X_PORT, x);
+  }
+
+  if (auto_y) {
+    y += dirY * SPRITE_HEIGHT;
+    Uxn_dev_write_short(uxn, SCREEN_Y_PORT, y);
+  }
+}
+
+void screen_draw_two_bit(Uxn* uxn, T* screen, Byte control) {
+
+}
+
+void screen_sprite_port(Uxn* uxn, T* screen) {
+  Byte control = Uxn_dev_read(uxn, SCREEN_SPRITE_PORT);
+  Byte two_bit_mode = control & 0x80;
+
+  if (two_bit_mode) {
+    screen_draw_two_bit(uxn, screen, control);
+  } else {
+    screen_draw_one_bit(uxn, screen, control);
   }
 }
 
@@ -236,6 +372,7 @@ void screen_deo(Uxn* uxn, Byte addr) {
     case SCREEN_HEIGHT_PORT:
     case SCREEN_HEIGHT_PORT + 1: screen_resize(uxn); break;
     case SCREEN_PIXEL_PORT: screen_pixel_port(uxn, screen); break;
+    case SCREEN_SPRITE_PORT: screen_sprite_port(uxn, screen); break;
     default: break;
   }
 }

@@ -217,8 +217,17 @@ Byte Uxn_dev_read(Uxn* uxn, Byte addr) {
   return uxn->dev[addr];
 }
 
+Short Uxn_dev_read_short(Uxn* uxn, Byte addr) {
+  return (uxn->dev[addr] << 8 | uxn->dev[addr + 1]);
+}
+
 void Uxn_dev_write(Uxn* uxn, Byte addr, Byte value) {
   uxn->dev[addr] = value;
+}
+
+void Uxn_dev_write_short(Uxn* uxn, Byte addr, Short value) {
+  uxn->dev[addr] = value >> 8;
+  uxn->dev[addr + 1] = value & 0xff;
 }
 
 // Immediate Ops
