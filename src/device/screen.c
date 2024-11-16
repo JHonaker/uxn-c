@@ -93,6 +93,14 @@ void screen_boot(Uxn* uxn) {
   Uxn_dev_write(uxn, SCREEN_HEIGHT_PORT + 1, screen->height & 0xff);
 }
 
+static Color pixel_color(Color palette[], Byte control) {
+  Byte fg_layer = control & 0x40;
+  Byte color = control & 0x03;
+
+  return (color == 0 && fg_layer) ? BLANK : palette[color];
+}
+
+
 void screen_pixel_port(Uxn* uxn, T* screen) {
   Byte control = Uxn_dev_read(uxn, SCREEN_PIXEL_PORT);
   Byte color = control & 0x03;
@@ -115,7 +123,7 @@ void screen_pixel_port(Uxn* uxn, T* screen) {
   Byte auto_x = auto_byte & 0x01;
   Byte auto_y = auto_byte & 0x02;
 
-  Color draw_color = (color == 0 && fg_layer) ? BLANK : screen->palette[color];
+  Color draw_color = pixel_color(screen->palette, control);
   
   BeginTextureMode(layer_texture);
   BeginBlendMode(BLEND_CUSTOM);
@@ -227,9 +235,7 @@ void screen_deo(Uxn* uxn, Byte addr) {
     case SCREEN_WIDTH_PORT + 1:
     case SCREEN_HEIGHT_PORT:
     case SCREEN_HEIGHT_PORT + 1: screen_resize(uxn); break;
-    case SCREEN_PIXEL_PORT: 
-      screen_pixel_port(uxn, screen);
-      break;
+    case SCREEN_PIXEL_PORT: screen_pixel_port(uxn, screen); break;
     default: break;
   }
 }
