@@ -1,14 +1,14 @@
-#include "greatest.h"
 #include "../src/common.h"
 #include "../src/uxn.h"
+#include "greatest.h"
 
 SUITE_EXTERN(stack);
 SUITE_EXTERN(uxn);
 
 GREATEST_MAIN_DEFS();
 
-void Uxn_dei_dispatch(Uxn* uxn, Byte addr) { }
-Byte Uxn_deo_dispatch(Uxn* uxn, Byte addr) { return 0; }
+void Uxn_dei_dispatch(Uxn *uxn, Byte addr) {}
+Byte Uxn_deo_dispatch(Uxn *uxn, Byte addr) { return 0; }
 
 int main(int argc, char **argv) {
   GREATEST_MAIN_BEGIN();

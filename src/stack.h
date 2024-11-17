@@ -11,66 +11,67 @@ typedef struct T T;
 
 /**
  * @brief Initialize the stack.
- * 
+ *
  * Only use this function on an uninitialized stack.
- * 
- * Each stack initialized with this function must be destroyed with a call to `Stack_destroy`.
- * 
+ *
+ * Each stack initialized with this function must be destroyed with a call to
+ * `Stack_destroy`.
+ *
  * @param stack Pointer to the uninitialized stack.
  */
-void Stack_init(T* stack);
+void Stack_init(T *stack);
 
 /**
  * @brief Destroy the stack.
- * 
+ *
  * Only use this function on a stack initialized with `Stack_init`.
- * 
+ *
  * @param stack Pointer to the stack.
  */
-void Stack_destroy(T* stack);
+void Stack_destroy(T *stack);
 
 /**
  * @brief Allocate and initialize a new stack.
- * 
+ *
  * The stack must be destroyed with a call to `Stack_delete`.
- * 
+ *
  * @return Pointer to the new stack.
  */
-T* Stack_new();
+T *Stack_new();
 
 /**
  * @brief Destroy and deallocate a stack.
- * 
+ *
  * Only use this function on a stack allocated with `Stack_new`.
- * 
+ *
  * @param stack Pointer to the stack.
  */
-void Stack_delete(T* stack);
+void Stack_delete(T *stack);
 
 // Stack operations
 
 /**
  * @brief Set the stack and its pointer to zero.
- * 
+ *
  * @param stack Pointer to the stack.
  */
-void Stack_zero(T* stack);
+void Stack_zero(T *stack);
 
 /**
  * @brief Push a value onto the stack.
- * 
+ *
  * @param stack Pointer to the stack.
  * @param value The byte value to be pushed onto the stack.
  */
-void Stack_push(T* stack, Byte value);
+void Stack_push(T *stack, Byte value);
 
 /**
  * @brief Pop a value from the stack and return it.
- * 
+ *
  * @param stack Pointer to the stack.
  * @return The byte value popped from the stack.
  */
-Byte Stack_pop(T* stack);
+Byte Stack_pop(T *stack);
 
 /**
  * @brief Peeks at a byte in the stack at a given offset from the top.
@@ -84,38 +85,38 @@ Byte Stack_pop(T* stack);
  * @param offset The offset from the top of the stack.
  * @return The byte value at the specified offset in the stack.
  */
-Byte Stack_peek_offset(T* stack, Byte offset);
+Byte Stack_peek_offset(T *stack, Byte offset);
 
 /**
  * @brief Peeks at the top value in the stack without removing it.
- * 
+ *
  * @param stack Pointer to the stack.
  * @return The byte value at the top of the stack.
  */
-Byte Stack_peek(T* stack);
+Byte Stack_peek(T *stack);
 
 /**
  * @brief Set the stack pointer to a specific value.
- * 
+ *
  * @param stack Pointer to the stack.
  * @param ptr The value to set the stack pointer to.
  */
-void Stack_set_ptr(T* stack, Byte ptr);
+void Stack_set_ptr(T *stack, Byte ptr);
 
 /**
  * @brief Get the stack pointer.
- * 
+ *
  * @param stack Pointer to the stack.
  * @return The value of the stack pointer.
  */
-Byte Stack_get_ptr(T* stack);
+Byte Stack_get_ptr(T *stack);
 
 /**
  * @brief Dump the stack to the console.
- * 
+ *
  * @param stack Pointer to the stack.
  */
-void Stack_dump(T* stack, const char* name);
+void Stack_dump(T *stack, const char *name);
 
 #undef T
 #endif // STACK_H

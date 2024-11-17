@@ -11,14 +11,12 @@
 #define SYSTEM_DEBUG_PORT 0x0e
 #define SYSTEM_STATE_PORT 0x0f
 
-typedef enum ExpansionOp {
-  FILL, CPYL, CPYR
-} ExpansionOp;
+typedef enum ExpansionOp { FILL, CPYL, CPYR } ExpansionOp;
 
-void system_reboot(Uxn* uxn, char* rom_path, bool soft_reboot);
-void system_inspect(Uxn* uxn);
-int system_error(char* msg, const char* err);
-int system_boot(Uxn* uxn, char* rom_path);
+void system_reboot(Uxn *uxn, char *rom_path, bool soft_reboot);
+void system_inspect(Uxn *uxn);
+int system_error(char *msg, const char *err);
+int system_boot(Uxn *uxn, char *rom_path);
 
-Byte system_dei(Uxn* uxn, Byte addr);
-void system_deo(Uxn* uxn, Byte addr);
+Byte system_dei(Uxn *uxn, Byte addr);
+void system_deo(Uxn *uxn, Byte addr);

@@ -1,6 +1,6 @@
-#include <raylib.h>
 #include "../common.h"
 #include "../uxn.h"
+#include <raylib.h>
 
 #ifndef screen_h
 #define screen_h
@@ -28,23 +28,14 @@
 
 typedef struct T T;
 
-
-
 typedef enum {
   PIXEL_MODE,
   FILL_MODE,
 } PixelMode;
 
-typedef enum {
-  ONE_BIT,
-  TWO_BIT
-} SpriteMode;
+typedef enum { ONE_BIT, TWO_BIT } SpriteMode;
 
-typedef enum {
-  BG_LAYER,
-  FG_LAYER
-} DrawLayer;
-
+typedef enum { BG_LAYER, FG_LAYER } DrawLayer;
 
 struct T {
   RenderTexture2D bg_buffer;
@@ -56,15 +47,15 @@ struct T {
   Color palette[4];
 };
 
-T* screen_new(int widht, int height, int scale);
-void screen_delete(T* screen);
+T *screen_new(int widht, int height, int scale);
+void screen_delete(T *screen);
 
-Byte screen_dei(Uxn* uxn, Byte addr);
-void screen_deo(Uxn* uxn, Byte addr);
+Byte screen_dei(Uxn *uxn, Byte addr);
+void screen_deo(Uxn *uxn, Byte addr);
 
-void screen_boot(Uxn* uxn);
-void screen_update(Uxn* uxn);
-void screen_change_palette(Uxn* uxn);
+void screen_boot(Uxn *uxn);
+void screen_update(Uxn *uxn);
+void screen_change_palette(Uxn *uxn);
 
 #undef T
 #endif // screen_h

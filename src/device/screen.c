@@ -1,34 +1,33 @@
 #include <raylib.h>
 #include <rlgl.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include "system.h"
 #include "screen.h"
-
+#include "system.h"
 
 #define T RaylibScreen
 
 // From the Varvara spec:
-// c = !ch ? (color % 5 ? color >> 2 : 0) : color % 4 + ch == 1 ? 0 : (ch - 2 + (color & 3)) % 3 + 1;
+// c = !ch ? (color % 5 ? color >> 2 : 0) : color % 4 + ch == 1 ? 0 : (ch - 2 +
+// (color & 3)) % 3 + 1;
 static const Byte blending[4][16] = {
-  {0, 0, 0, 0, 1, 0, 1, 1, 2, 2, 0, 2, 3, 3, 3, 0},
-  {0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
-  {1, 2, 3, 1, 1, 2, 3, 1, 1, 2, 3, 1, 1, 2, 3, 1},
-  {2, 3, 1, 2, 2, 3, 1, 2, 2, 3, 1, 2, 2, 3, 1, 2}
-};
+    {0, 0, 0, 0, 1, 0, 1, 1, 2, 2, 0, 2, 3, 3, 3, 0},
+    {0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
+    {1, 2, 3, 1, 1, 2, 3, 1, 1, 2, 3, 1, 1, 2, 3, 1},
+    {2, 3, 1, 2, 2, 3, 1, 2, 2, 3, 1, 2, 2, 3, 1, 2}};
 
-void screen_init(T* screen, int width, int height, int scale) {
+void screen_init(T *screen, int width, int height, int scale) {
   InitWindow(width * scale, height * scale, "Uxn");
 
-  *screen = (T) {
-    .bg_buffer = LoadRenderTexture(width, height),
-    .fg_buffer = LoadRenderTexture(width, height),
-    .sprite_buffer = LoadRenderTexture(SPRITE_WIDTH, SPRITE_HEIGHT),
-    .width = width,
-    .height = height,
-    .scale = scale,
-    .palette = {RED, GREEN, BLUE, MAGENTA},
+  *screen = (T){
+      .bg_buffer = LoadRenderTexture(width, height),
+      .fg_buffer = LoadRenderTexture(width, height),
+      .sprite_buffer = LoadRenderTexture(SPRITE_WIDTH, SPRITE_HEIGHT),
+      .width = width,
+      .height = height,
+      .scale = scale,
+      .palette = {RED, GREEN, BLUE, MAGENTA},
   };
 
   SetTargetFPS(60);
@@ -43,60 +42,56 @@ void screen_init(T* screen, int width, int height, int scale) {
   rlSetBlendFactors(RL_ONE, RL_ZERO, RL_FUNC_ADD);
 }
 
-void screen_destroy(T* screen) {
-  
+void screen_destroy(T *screen) {
+
   UnloadRenderTexture(screen->fg_buffer);
   UnloadRenderTexture(screen->bg_buffer);
   UnloadRenderTexture(screen->sprite_buffer);
-  
+
   CloseWindow();
 }
 
-T* screen_new(int width, int height, int scale) {
-  T* screen = (T*) malloc(sizeof(T));
+T *screen_new(int width, int height, int scale) {
+  T *screen = (T *)malloc(sizeof(T));
   screen_init(screen, width, height, scale);
   return screen;
 }
 
-void screen_delete(T* screen) {
+void screen_delete(T *screen) {
   screen_destroy(screen);
   free(screen);
 }
 
-static void draw_buffer(RenderTexture2D* buffer, int scale) {
+static void draw_buffer(RenderTexture2D *buffer, int scale) {
   Texture2D texture = buffer->texture;
 
   DrawTexturePro(
-    texture, 
-    // Source rect needs to flip Y axis
-    (Rectangle) {0, 0, 
-      (float) texture.width,
-      (float) -texture.height},
-    // Dest rect is scaled up
-    (Rectangle) {0, 0, 
-      (float) texture.width * scale,
-      (float) texture.height * scale},
-    (Vector2) {0, 0},
-    0,
-    WHITE);
+      texture,
+      // Source rect needs to flip Y axis
+      (Rectangle){0, 0, (float)texture.width, (float)-texture.height},
+      // Dest rect is scaled up
+      (Rectangle){0, 0, (float)texture.width * scale,
+                  (float)texture.height * scale},
+      (Vector2){0, 0}, 0, WHITE);
 }
 
-void screen_redraw(Uxn* uxn, T* screen) {
+void screen_redraw(Uxn *uxn, T *screen) {
 
   BeginDrawing();
 
   ClearBackground(RAYWHITE);
-  
+
   draw_buffer(&screen->bg_buffer, screen->scale);
   draw_buffer(&screen->fg_buffer, screen->scale);
 
   EndDrawing();
 
-  if (WindowShouldClose()) Uxn_dev_write(uxn, SYSTEM_STATE_PORT, 1);
+  if (WindowShouldClose())
+    Uxn_dev_write(uxn, SYSTEM_STATE_PORT, 1);
 }
 
-void screen_boot(Uxn* uxn) {
-  RaylibScreen* screen = Uxn_get_screen(uxn);
+void screen_boot(Uxn *uxn) {
+  RaylibScreen *screen = Uxn_get_screen(uxn);
 
   Uxn_dev_write(uxn, SCREEN_WIDTH_PORT, screen->width >> 8);
   Uxn_dev_write(uxn, SCREEN_WIDTH_PORT + 1, screen->width & 0xff);
@@ -120,15 +115,15 @@ static Color sprite_color(Color palette[], Byte control, int color_number) {
 
   bool opaque = color_number % 5 != 0;
 
-
   return (opaque || blend_mode) ? palette[color] : BLANK;
 }
 
-void screen_pixel_port(Uxn* uxn, T* screen) {
+void screen_pixel_port(Uxn *uxn, T *screen) {
   Byte control = Uxn_dev_read(uxn, SCREEN_PIXEL_PORT);
   Byte color = control & 0x03;
   Byte fg_layer = control & 0x40;
-  RenderTexture2D layer_texture = fg_layer ? screen->fg_buffer : screen->bg_buffer;
+  RenderTexture2D layer_texture =
+      fg_layer ? screen->fg_buffer : screen->bg_buffer;
   Byte fill_mode = control & 0x80;
 
   Byte high_x = Uxn_dev_read(uxn, SCREEN_X_PORT);
@@ -163,7 +158,7 @@ void screen_pixel_port(Uxn* uxn, T* screen) {
   } else {
     DrawPixel(x, y, screen->palette[color]);
   }
-  
+
   EndBlendMode();
   EndTextureMode();
 
@@ -180,7 +175,8 @@ void screen_pixel_port(Uxn* uxn, T* screen) {
   }
 }
 
-void read_1bpp_sprite(Uxn* uxn, RenderTexture2D* buffer, Byte control, Color palette[]) {
+void read_1bpp_sprite(Uxn *uxn, RenderTexture2D *buffer, Byte control,
+                      Color palette[]) {
   Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
 
   Byte sprite_data[SPRITE_1BPP_BUFFER_SIZE] = {0};
@@ -198,7 +194,7 @@ void read_1bpp_sprite(Uxn* uxn, RenderTexture2D* buffer, Byte control, Color pal
     for (int i = 0; i < SPRITE_WIDTH; i++) {
       int shift = (SPRITE_WIDTH - 1) - i;
       Byte bit = (row >> shift) & 0x01;
-      
+
       Color color = sprite_color(palette, control, bit);
       DrawPixel(i, j, color);
     }
@@ -208,7 +204,8 @@ void read_1bpp_sprite(Uxn* uxn, RenderTexture2D* buffer, Byte control, Color pal
   EndTextureMode();
 }
 
-void read_2bpp_sprite(Uxn* uxn, RenderTexture2D* buffer, Byte control, Color palette[]) {
+void read_2bpp_sprite(Uxn *uxn, RenderTexture2D *buffer, Byte control,
+                      Color palette[]) {
   Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
 
   Byte sprite_data[SPRITE_2BPP_BUFFER_SIZE] = {0};
@@ -228,7 +225,7 @@ void read_2bpp_sprite(Uxn* uxn, RenderTexture2D* buffer, Byte control, Color pal
       int shift = (SPRITE_WIDTH - 1) - i;
       Byte low_bit = (low_row >> shift) & 0x01;
       Byte high_bit = (high_row >> shift) & 0x01;
-      
+
       Color color = sprite_color(palette, control, (high_bit << 1) | low_bit);
       DrawPixel(i, j, color);
     }
@@ -238,14 +235,14 @@ void read_2bpp_sprite(Uxn* uxn, RenderTexture2D* buffer, Byte control, Color pal
   EndTextureMode();
 }
 
-static void shift_sprite_addr(Uxn* uxn, bool two_bit_mode) {
+static void shift_sprite_addr(Uxn *uxn, bool two_bit_mode) {
   Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
   addr += two_bit_mode ? 16 : 8;
   Uxn_dev_write_short(uxn, SCREEN_ADDR_PORT, addr);
 }
 
-void screen_draw_one_bit(Uxn* uxn, T* screen, Byte control) {
-  Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT); 
+void screen_draw_one_bit(Uxn *uxn, T *screen, Byte control) {
+  Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
   Short y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
 
   Byte flip_x = control & 0x10;
@@ -263,7 +260,8 @@ void screen_draw_one_bit(Uxn* uxn, T* screen, Byte control) {
   Byte auto_length = (auto_byte & 0xf0) >> 4;
 
   Byte fg_layer = control & 0x40;
-  RenderTexture2D layer_texture = fg_layer ? screen->fg_buffer : screen->bg_buffer;
+  RenderTexture2D layer_texture =
+      fg_layer ? screen->fg_buffer : screen->bg_buffer;
 
   // Read sprite data
   read_1bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
@@ -281,14 +279,12 @@ void screen_draw_one_bit(Uxn* uxn, T* screen, Byte control) {
   for (int i = 0; i <= auto_length; i++) {
     BeginTextureMode(layer_texture);
     BeginBlendMode(BLEND_CUSTOM);
-    DrawTexturePro(screen->sprite_buffer.texture,
-                   (Rectangle){0, 0, dirX * SPRITE_WIDTH, dirY * -SPRITE_HEIGHT},
-                   (Rectangle){x + i * dx,
-                               y + i * dy,
-                               SPRITE_WIDTH,
-                               SPRITE_HEIGHT},
-                   (Vector2){0, 0}, 0, WHITE);
-   
+    DrawTexturePro(
+        screen->sprite_buffer.texture,
+        (Rectangle){0, 0, dirX * SPRITE_WIDTH, dirY * -SPRITE_HEIGHT},
+        (Rectangle){x + i * dx, y + i * dy, SPRITE_WIDTH, SPRITE_HEIGHT},
+        (Vector2){0, 0}, 0, WHITE);
+
     EndBlendMode();
     EndTextureMode();
 
@@ -309,8 +305,8 @@ void screen_draw_one_bit(Uxn* uxn, T* screen, Byte control) {
   }
 }
 
-void screen_draw_two_bit(Uxn* uxn, T* screen, Byte control) {
-Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT); 
+void screen_draw_two_bit(Uxn *uxn, T *screen, Byte control) {
+  Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
   Short y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
 
   Byte flip_x = control & 0x10;
@@ -328,7 +324,8 @@ Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
   Byte auto_length = (auto_byte & 0xf0) >> 4;
 
   Byte fg_layer = control & 0x40;
-  RenderTexture2D layer_texture = fg_layer ? screen->fg_buffer : screen->bg_buffer;
+  RenderTexture2D layer_texture =
+      fg_layer ? screen->fg_buffer : screen->bg_buffer;
 
   // Read sprite data
   read_2bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
@@ -346,14 +343,12 @@ Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
   for (int i = 0; i <= auto_length; i++) {
     BeginTextureMode(layer_texture);
     BeginBlendMode(BLEND_CUSTOM);
-    DrawTexturePro(screen->sprite_buffer.texture,
-                   (Rectangle){0, 0, dirX * SPRITE_WIDTH, dirY * -SPRITE_HEIGHT},
-                   (Rectangle){x + i * dx,
-                               y + i * dy,
-                               SPRITE_WIDTH,
-                               SPRITE_HEIGHT},
-                   (Vector2){0, 0}, 0, WHITE);
-   
+    DrawTexturePro(
+        screen->sprite_buffer.texture,
+        (Rectangle){0, 0, dirX * SPRITE_WIDTH, dirY * -SPRITE_HEIGHT},
+        (Rectangle){x + i * dx, y + i * dy, SPRITE_WIDTH, SPRITE_HEIGHT},
+        (Vector2){0, 0}, 0, WHITE);
+
     EndBlendMode();
     EndTextureMode();
 
@@ -374,7 +369,7 @@ Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
   }
 }
 
-void screen_sprite_port(Uxn* uxn, T* screen) {
+void screen_sprite_port(Uxn *uxn, T *screen) {
   Byte control = Uxn_dev_read(uxn, SCREEN_SPRITE_PORT);
   Byte two_bit_mode = control & 0x80;
 
@@ -385,8 +380,8 @@ void screen_sprite_port(Uxn* uxn, T* screen) {
   }
 }
 
-void screen_change_palette(Uxn* uxn) {
-  RaylibScreen* screen = Uxn_get_screen(uxn);
+void screen_change_palette(Uxn *uxn) {
+  RaylibScreen *screen = Uxn_get_screen(uxn);
 
   Byte high_red = Uxn_dev_read(uxn, SYSTEM_RED_PORT);
   Byte low_red = Uxn_dev_read(uxn, SYSTEM_RED_PORT + 1);
@@ -411,27 +406,27 @@ void screen_change_palette(Uxn* uxn) {
     green = green | (green << 4);
     blue = blue | (blue << 4);
 
-    screen->palette[color] = (Color) {
-      .r = red,
-      .g = green,
-      .b = blue,
-      .a = 255,
+    screen->palette[color] = (Color){
+        .r = red,
+        .g = green,
+        .b = blue,
+        .a = 255,
     };
   }
 }
 
-void screen_update(Uxn* uxn) {
-  RaylibScreen* screen = Uxn_get_screen(uxn);
+void screen_update(Uxn *uxn) {
+  RaylibScreen *screen = Uxn_get_screen(uxn);
   Byte high = Uxn_dev_read(uxn, SCREEN_VECTOR_PORT);
   Byte low = Uxn_dev_read(uxn, SCREEN_VECTOR_PORT + 1);
   Short screen_vector = high << 8 | low;
-  
+
   Uxn_eval(uxn, screen_vector);
   screen_redraw(uxn, screen);
 }
 
-void screen_resize(Uxn* uxn) {
-  RaylibScreen* screen = Uxn_get_screen(uxn);
+void screen_resize(Uxn *uxn) {
+  RaylibScreen *screen = Uxn_get_screen(uxn);
 
   Byte high_width = Uxn_dev_read(uxn, SCREEN_WIDTH_PORT);
   Byte low_width = Uxn_dev_read(uxn, SCREEN_WIDTH_PORT + 1);
@@ -444,27 +439,39 @@ void screen_resize(Uxn* uxn) {
   SetWindowSize(screen->width * screen->scale, screen->height * screen->scale);
 }
 
-Byte screen_dei(Uxn* uxn, Byte addr) {
-  RaylibScreen* screen = Uxn_get_screen(uxn);
+Byte screen_dei(Uxn *uxn, Byte addr) {
+  RaylibScreen *screen = Uxn_get_screen(uxn);
   switch (addr) {
-    case SCREEN_WIDTH_PORT:       return screen->width >> 8;
-    case SCREEN_WIDTH_PORT + 1:   return screen->width & 0xff;
-    case SCREEN_HEIGHT_PORT:      return screen->height >> 8;
-    case SCREEN_HEIGHT_PORT + 1:  return screen->height & 0xff;
-    default: return Uxn_dev_read(uxn, addr);
+  case SCREEN_WIDTH_PORT:
+    return screen->width >> 8;
+  case SCREEN_WIDTH_PORT + 1:
+    return screen->width & 0xff;
+  case SCREEN_HEIGHT_PORT:
+    return screen->height >> 8;
+  case SCREEN_HEIGHT_PORT + 1:
+    return screen->height & 0xff;
+  default:
+    return Uxn_dev_read(uxn, addr);
   }
 }
 
-void screen_deo(Uxn* uxn, Byte addr) {
-  RaylibScreen* screen = Uxn_get_screen(uxn);
+void screen_deo(Uxn *uxn, Byte addr) {
+  RaylibScreen *screen = Uxn_get_screen(uxn);
 
   switch (addr) {
-    case SCREEN_WIDTH_PORT:
-    case SCREEN_WIDTH_PORT + 1:
-    case SCREEN_HEIGHT_PORT:
-    case SCREEN_HEIGHT_PORT + 1: screen_resize(uxn); break;
-    case SCREEN_PIXEL_PORT: screen_pixel_port(uxn, screen); break;
-    case SCREEN_SPRITE_PORT: screen_sprite_port(uxn, screen); break;
-    default: break;
+  case SCREEN_WIDTH_PORT:
+  case SCREEN_WIDTH_PORT + 1:
+  case SCREEN_HEIGHT_PORT:
+  case SCREEN_HEIGHT_PORT + 1:
+    screen_resize(uxn);
+    break;
+  case SCREEN_PIXEL_PORT:
+    screen_pixel_port(uxn, screen);
+    break;
+  case SCREEN_SPRITE_PORT:
+    screen_sprite_port(uxn, screen);
+    break;
+  default:
+    break;
   }
 }

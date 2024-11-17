@@ -1,22 +1,22 @@
-#include "greatest.h"
 #include "../src/common.h"
 #include "../src/stack.h"
+#include "greatest.h"
 
 SUITE(stack);
 
 TEST test_push() {
-  Stack* stack = Stack_new();
+  Stack *stack = Stack_new();
   Stack_init(stack);
   Stack_push(stack, 0x80);
   ASSERT(Stack_peek(stack) == 0x80);
 
   Stack_delete(stack);
-  
+
   PASS();
 }
 
 TEST test_pop() {
-  Stack* stack = Stack_new();
+  Stack *stack = Stack_new();
   Stack_init(stack);
   Stack_push(stack, 0x80);
   Stack_push(stack, 0x81);
