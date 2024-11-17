@@ -131,11 +131,8 @@ void screen_redraw(Uxn *uxn, T *screen) {
 void screen_boot(Uxn *uxn) {
   RaylibScreen *screen = Uxn_get_screen(uxn);
 
-  Uxn_dev_write(uxn, SCREEN_WIDTH_PORT, screen->width >> 8);
-  Uxn_dev_write(uxn, SCREEN_WIDTH_PORT + 1, screen->width & 0xff);
-
-  Uxn_dev_write(uxn, SCREEN_HEIGHT_PORT, screen->height >> 8);
-  Uxn_dev_write(uxn, SCREEN_HEIGHT_PORT + 1, screen->height & 0xff);
+  Uxn_dev_write_short(uxn, SCREEN_WIDTH_PORT, screen->width);
+  Uxn_dev_write_short(uxn, SCREEN_HEIGHT_PORT, screen->height);
 }
 
 
@@ -192,14 +189,12 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
 
   if (auto_x) {
     x++;
-    Uxn_dev_write(uxn, SCREEN_X_PORT, x >> 8);
-    Uxn_dev_write(uxn, SCREEN_X_PORT + 1, x & 0xff);
+    Uxn_dev_write_short(uxn, SCREEN_X_PORT, x);
   }
 
   if (auto_y) {
     y++;
-    Uxn_dev_write(uxn, SCREEN_Y_PORT, y >> 8);
-    Uxn_dev_write(uxn, SCREEN_Y_PORT + 1, y & 0xff);
+    Uxn_dev_write_short(uxn, SCREEN_Y_PORT, y);
   }
 }
 
