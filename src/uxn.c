@@ -140,6 +140,10 @@ void Uxn_mem_load(Uxn *uxn, Byte program[], unsigned long size, Short addr) {
 
 Byte Uxn_mem_read(Uxn *uxn, Short address) { return uxn->ram[address]; }
 
+void Uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[], Short address) {
+  memcpy(buffer, &uxn->ram[address], size);
+}
+
 Short Uxn_mem_read_short(Uxn *uxn, Short address) {
   return (uxn->ram[address] << 8) | uxn->ram[address + 1];
 }

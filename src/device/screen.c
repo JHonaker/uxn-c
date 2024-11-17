@@ -8,14 +8,73 @@
 
 #define T RaylibScreen
 
+// clang-format off
+
 // From the Varvara spec:
-// c = !ch ? (color % 5 ? color >> 2 : 0) : color % 4 + ch == 1 ? 0 : (ch - 2 +
-// (color & 3)) % 3 + 1;
-static const Byte blending[4][16] = {
-    {0, 0, 0, 0, 1, 0, 1, 1, 2, 2, 0, 2, 3, 3, 3, 0},
-    {0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
-    {1, 2, 3, 1, 1, 2, 3, 1, 1, 2, 3, 1, 1, 2, 3, 1},
-    {2, 3, 1, 2, 2, 3, 1, 2, 2, 3, 1, 2, 2, 3, 1, 2}};
+// c = !ch
+//    ? (color % 5 ? color >> 2 : 0)
+//    : color % 4 + ch == 1 ? 0 : (ch - 2 + (color & 3)) % 3 + 1;
+static const Byte color_table[16][4] = {
+    {0, 0, 1, 2}, // In 1bpp mode index 0 = clear and index 1 = transparent
+    {0, 1, 2, 3}, 
+    {0, 2, 3, 1},
+    {0, 3, 1, 2},
+    {1, 0, 1, 2},
+    {0, 1, 2, 3}, // 0 in this mode is transparent
+    {1, 2, 3, 1},
+    {1, 3, 1, 2},
+    {2, 0, 1, 2},
+    {2, 1, 2, 3},
+    {0, 2, 3, 1}, // 0 in this mode is transparent
+    {2, 3, 1, 2},
+    {3, 0, 1, 2},
+    {3, 1, 2, 3},
+    {3, 2, 3, 1},
+    {0, 3, 1, 2}, // 0 in this mode is transparent
+};
+
+// clang-format on
+
+static void set_transparent_mode(void) {
+  rlSetBlendFactorsSeparate(RL_ONE, RL_ZERO, RL_ONE, RL_ZERO, RL_FUNC_ADD,
+                            RL_FUNC_ADD);
+}
+
+static void set_clear_mode(void) {
+  rlSetBlendFactorsSeparate(RL_ZERO, RL_ONE, RL_ONE, RL_ZERO, RL_FUNC_ADD,
+                            RL_FUNC_ADD);
+}
+
+static void set_erase_with_alpha_mode(void) {
+  rlSetBlendFactorsSeparate(RL_ZERO, RL_ONE_MINUS_SRC_ALPHA, RL_ZERO,
+                            RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
+}
+
+// I want a mode that can be used to add pixels with RGB 255
+// No Op for RGB 0
+// And erase pixels with RGB 0
+
+static Color pixel_color(Color palette[], Byte control) {
+  Byte fg_layer = control & 0x40;
+  Byte color = control & 0x03;
+
+  return (color == 0 && fg_layer) ? BLANK : palette[color];
+}
+static void sprite_palette(Color palette[4], Color screen_colors[static 4],
+                           DrawLayer layer, Byte color_byte) {
+
+  // Load the colors from the screen palette
+  for (size_t i = 0; i < 4; i++) {
+    Byte color_index = color_table[color_byte][i];
+    palette[i] = layer == FG_LAYER && color_index == 0
+                     ? BLANK
+                     : screen_colors[color_index];
+  }
+
+  if (color_byte % 5 == 0) {
+    palette[0] = BLANK;
+  }
+}
 
 void screen_init(T *screen, int width, int height, int scale) {
   InitWindow(width * scale, height * scale, "Uxn");
@@ -39,7 +98,7 @@ void screen_init(T *screen, int width, int height, int scale) {
   ClearBackground(BLANK);
   EndTextureMode();
 
-  rlSetBlendFactors(RL_ONE, RL_ZERO, RL_FUNC_ADD);
+  set_transparent_mode();
 }
 
 void screen_destroy(T *screen) {
@@ -100,23 +159,7 @@ void screen_boot(Uxn *uxn) {
   Uxn_dev_write(uxn, SCREEN_HEIGHT_PORT + 1, screen->height & 0xff);
 }
 
-static Color pixel_color(Color palette[], Byte control) {
-  Byte fg_layer = control & 0x40;
-  Byte color = control & 0x03;
 
-  return (color == 0 && fg_layer) ? BLANK : palette[color];
-}
-
-static Color sprite_color(Color palette[], Byte control, int color_number) {
-  Byte fg_layer = control & 0x40;
-  Byte blend_mode = control & 0x0f;
-
-  Byte color = blending[color_number][blend_mode];
-
-  bool opaque = color_number % 5 != 0;
-
-  return (opaque || blend_mode) ? palette[color] : BLANK;
-}
 
 void screen_pixel_port(Uxn *uxn, T *screen) {
   Byte control = Uxn_dev_read(uxn, SCREEN_PIXEL_PORT);
@@ -126,13 +169,8 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
       fg_layer ? screen->fg_buffer : screen->bg_buffer;
   Byte fill_mode = control & 0x80;
 
-  Byte high_x = Uxn_dev_read(uxn, SCREEN_X_PORT);
-  Byte low_x = Uxn_dev_read(uxn, SCREEN_X_PORT + 1);
-  Short x = high_x << 8 | low_x;
-
-  Byte high_y = Uxn_dev_read(uxn, SCREEN_Y_PORT);
-  Byte low_y = Uxn_dev_read(uxn, SCREEN_Y_PORT + 1);
-  Short y = high_y << 8 | low_y;
+  Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT); 
+  Short y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
 
   Byte flip_x = control & 0x10;
   Byte flip_y = control & 0x20;
@@ -144,7 +182,6 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
   Color draw_color = pixel_color(screen->palette, control);
 
   BeginTextureMode(layer_texture);
-  BeginBlendMode(BLEND_CUSTOM);
 
   if (fill_mode) {
 
@@ -159,7 +196,6 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
     DrawPixel(x, y, screen->palette[color]);
   }
 
-  EndBlendMode();
   EndTextureMode();
 
   if (auto_x) {
@@ -175,32 +211,56 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
   }
 }
 
+void read_sprite_chunk(Uxn *uxn, Byte buffer[SPRITE_BUFFER_SIZE], Short addr) {
+  Uxn_mem_buffer_read(uxn, SPRITE_BUFFER_SIZE, buffer, addr);
+}
+
+void decode_1bpp_sprite(Byte sprite_data[SPRITE_BUFFER_SIZE],
+                        Byte decoded_data[SPRITE_HEIGHT][SPRITE_WIDTH]) {
+  for (int i = 0; i < SPRITE_HEIGHT; i++) {
+    Byte row = sprite_data[i];
+    Byte decoded_row = 0;
+    for (int j = 0; j < SPRITE_WIDTH; j++) {
+      Byte bit = (row >> j) & 0x01;
+      decoded_data[i][7 - j] = bit;
+    }
+  }
+}
+
+void decode_2bpp_sprite(Byte low_bit_data[SPRITE_BUFFER_SIZE],
+                        Byte high_bit_data[SPRITE_BUFFER_SIZE],
+                        Byte decoded_data[SPRITE_HEIGHT][SPRITE_WIDTH]) {
+  for (int i = 0; i < SPRITE_HEIGHT; i++) {
+    Byte low_row = low_bit_data[i];
+    Byte high_row = high_bit_data[i];
+    for (int j = 0; j < SPRITE_WIDTH; j++) {
+      Byte low_bit = (low_row >> j) & 0x01;
+      Byte high_bit = (high_row >> j) & 0x01;
+      decoded_data[i][7 - j] = (high_bit << 1) | low_bit;
+    }
+  }
+}
 void read_1bpp_sprite(Uxn *uxn, RenderTexture2D *buffer, Byte control,
                       Color palette[]) {
   Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
 
-  Byte sprite_data[SPRITE_1BPP_BUFFER_SIZE] = {0};
-  for (int i = 0; i < SPRITE_1BPP_BUFFER_SIZE; i++) {
-    sprite_data[i] = Uxn_mem_read(uxn, addr + i);
-  }
+  Byte sprite_data[SPRITE_BUFFER_SIZE] = {0};
+  read_sprite_chunk(uxn, sprite_data, addr);
+
+  Byte decoded_data[SPRITE_HEIGHT][SPRITE_WIDTH] = {0};
+  decode_1bpp_sprite(sprite_data, decoded_data);
 
   BeginTextureMode(*buffer);
-  BeginBlendMode(BLEND_CUSTOM);
 
   ClearBackground(BLANK);
 
   for (int j = 0; j < SPRITE_HEIGHT; j++) {
-    Byte row = sprite_data[j];
     for (int i = 0; i < SPRITE_WIDTH; i++) {
-      int shift = (SPRITE_WIDTH - 1) - i;
-      Byte bit = (row >> shift) & 0x01;
-
-      Color color = sprite_color(palette, control, bit);
+      Color color = palette[decoded_data[j][i]];
       DrawPixel(i, j, color);
     }
   }
 
-  EndBlendMode();
   EndTextureMode();
 }
 
@@ -208,30 +268,25 @@ void read_2bpp_sprite(Uxn *uxn, RenderTexture2D *buffer, Byte control,
                       Color palette[]) {
   Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
 
-  Byte sprite_data[SPRITE_2BPP_BUFFER_SIZE] = {0};
-  for (int i = 0; i < SPRITE_2BPP_BUFFER_SIZE; i++) {
-    sprite_data[i] = Uxn_mem_read(uxn, addr + i);
-  }
+  Byte low_bit_data[SPRITE_BUFFER_SIZE] = {0};
+  Byte high_bit_data[SPRITE_BUFFER_SIZE] = {0};
+  read_sprite_chunk(uxn, low_bit_data, addr);
+  read_sprite_chunk(uxn, high_bit_data, addr + SPRITE_BUFFER_SIZE);
+
+  Byte decoded_data[SPRITE_HEIGHT][SPRITE_WIDTH] = {0};
+  decode_2bpp_sprite(low_bit_data, high_bit_data, decoded_data);
 
   BeginTextureMode(*buffer);
-  BeginBlendMode(BLEND_CUSTOM);
 
   ClearBackground(BLANK);
 
   for (int j = 0; j < SPRITE_HEIGHT; j++) {
-    Byte low_row = sprite_data[j];
-    Byte high_row = sprite_data[j + 8];
     for (int i = 0; i < SPRITE_WIDTH; i++) {
-      int shift = (SPRITE_WIDTH - 1) - i;
-      Byte low_bit = (low_row >> shift) & 0x01;
-      Byte high_bit = (high_row >> shift) & 0x01;
-
-      Color color = sprite_color(palette, control, (high_bit << 1) | low_bit);
+      Color color = palette[decoded_data[j][i]];
       DrawPixel(i, j, color);
     }
   }
 
-  EndBlendMode();
   EndTextureMode();
 }
 
@@ -247,6 +302,7 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
 
   Byte flip_x = control & 0x10;
   Byte flip_y = control & 0x20;
+  DrawLayer layer = control & 0x40 ? FG_LAYER : BG_LAYER;
   Byte color = control & 0xf;
 
   Byte auto_byte = Uxn_dev_read(uxn, SCREEN_AUTO_PORT);
@@ -254,6 +310,16 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
   Byte auto_y = auto_byte & 0x02;
 
   Byte two_bit_mode = control & 0x80;
+
+  Color palette[4] = {0};
+  sprite_palette(palette, screen->palette, layer, color);
+
+  bool erase_mode = color == 0 && !two_bit_mode;
+
+  if (erase_mode) {
+    palette[1] = WHITE;
+    set_erase_with_alpha_mode();
+  }
 
   int dirX = flip_x ? -1 : 1;
   int dirY = flip_y ? -1 : 1;
@@ -267,39 +333,49 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
 
   // Read sprite data
   if (two_bit_mode) {
-    read_2bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
+    read_2bpp_sprite(uxn, &screen->sprite_buffer, control, palette);
   } else {
-    read_1bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
+    read_1bpp_sprite(uxn, &screen->sprite_buffer, control, palette);
   }
 
-  // The definition of dx and dy looks confusing
-  // because of the test for auto_y in dx and vice versa.
-  //
-  // This is intended!
-  //
-  // According to the Varvara spec, extra sprites are drawn as columns moving
-  // rightward for auto-x and as rows moving downward for auto-y
+  /**
+   * The definition of dx and dy looks confusing
+   * because of the test for auto_y in dx and vice versa.
+   *
+   * This is intended!
+   *
+   * According to the Varvara spec, extra sprites are drawn as columns moving
+   * rightward for auto-x and as rows moving downward for auto-y
+   */
+
   float dx = auto_y ? dirX * SPRITE_WIDTH : 0;
   float dy = auto_x ? dirY * SPRITE_HEIGHT : 0;
 
   for (int i = 0; i <= auto_length; i++) {
     BeginTextureMode(layer_texture);
-    BeginBlendMode(BLEND_CUSTOM);
+
+    if (erase_mode) {
+      BeginBlendMode(BLEND_CUSTOM_SEPARATE);
+    }
+
     DrawTexturePro(
         screen->sprite_buffer.texture,
         (Rectangle){0, 0, dirX * SPRITE_WIDTH, dirY * -SPRITE_HEIGHT},
         (Rectangle){x + i * dx, y + i * dy, SPRITE_WIDTH, SPRITE_HEIGHT},
         (Vector2){0, 0}, 0, WHITE);
 
-    EndBlendMode();
+    if (erase_mode) {
+      EndBlendMode();
+    }
+
     EndTextureMode();
 
     if (auto_addr) {
       shift_sprite_addr(uxn, two_bit_mode);
       if (two_bit_mode) {
-        read_2bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
+        read_2bpp_sprite(uxn, &screen->sprite_buffer, control, palette);
       } else {
-        read_1bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
+        read_1bpp_sprite(uxn, &screen->sprite_buffer, control, palette);
       }
     }
   }
@@ -322,17 +398,10 @@ void screen_sprite_port(Uxn *uxn, T *screen) {
 void screen_change_palette(Uxn *uxn) {
   RaylibScreen *screen = Uxn_get_screen(uxn);
 
-  Byte high_red = Uxn_dev_read(uxn, SYSTEM_RED_PORT);
-  Byte low_red = Uxn_dev_read(uxn, SYSTEM_RED_PORT + 1);
-  Short red_bits = high_red << 8 | low_red;
 
-  Byte high_green = Uxn_dev_read(uxn, SYSTEM_GREEN_PORT);
-  Byte low_green = Uxn_dev_read(uxn, SYSTEM_GREEN_PORT + 1);
-  Short green_bits = high_green << 8 | low_green;
-
-  Byte high_blue = Uxn_dev_read(uxn, SYSTEM_BLUE_PORT);
-  Byte low_blue = Uxn_dev_read(uxn, SYSTEM_BLUE_PORT + 1);
-  Short blue_bits = high_blue << 8 | low_blue;
+  Short red_bits = Uxn_dev_read_short(uxn, SYSTEM_RED_PORT);
+  Short green_bits = Uxn_dev_read_short(uxn, SYSTEM_GREEN_PORT);
+  Short blue_bits = Uxn_dev_read_short(uxn, SYSTEM_BLUE_PORT);
 
   for (int color = 0; color < 4; color++) {
     Byte shift = (3 - color) * 4;
@@ -356,9 +425,7 @@ void screen_change_palette(Uxn *uxn) {
 
 void screen_update(Uxn *uxn) {
   RaylibScreen *screen = Uxn_get_screen(uxn);
-  Byte high = Uxn_dev_read(uxn, SCREEN_VECTOR_PORT);
-  Byte low = Uxn_dev_read(uxn, SCREEN_VECTOR_PORT + 1);
-  Short screen_vector = high << 8 | low;
+  Short screen_vector = Uxn_dev_read_short(uxn, SCREEN_VECTOR_PORT);
 
   Uxn_eval(uxn, screen_vector);
   screen_redraw(uxn, screen);
@@ -367,13 +434,8 @@ void screen_update(Uxn *uxn) {
 void screen_resize(Uxn *uxn) {
   RaylibScreen *screen = Uxn_get_screen(uxn);
 
-  Byte high_width = Uxn_dev_read(uxn, SCREEN_WIDTH_PORT);
-  Byte low_width = Uxn_dev_read(uxn, SCREEN_WIDTH_PORT + 1);
-  screen->width = high_width << 8 | low_width;
-
-  Byte high_height = Uxn_dev_read(uxn, SCREEN_HEIGHT_PORT);
-  Byte low_height = Uxn_dev_read(uxn, SCREEN_HEIGHT_PORT + 1);
-  screen->height = high_height << 8 | low_height;
+  screen->width = Uxn_dev_read_short(uxn, SCREEN_WIDTH_PORT);
+  screen->height = Uxn_dev_read_short(uxn, SCREEN_HEIGHT_PORT);
 
   SetWindowSize(screen->width * screen->scale, screen->height * screen->scale);
 }

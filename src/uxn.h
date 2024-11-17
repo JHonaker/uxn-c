@@ -93,6 +93,8 @@ void Uxn_mem_load(T *uxn, Byte *program, unsigned long size, Short addr);
 Byte Uxn_mem_read(T *uxn, Short addr);
 Short Uxn_mem_read_short(T *uxn, Short addr);
 
+void Uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[size],  Short address);
+
 void Uxn_mem_write(T *uxn, Short addr, Byte value);
 
 Byte Uxn_page_read(T *uxn, Short page, Short addr);
