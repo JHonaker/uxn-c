@@ -241,7 +241,7 @@ static void shift_sprite_addr(Uxn *uxn, bool two_bit_mode) {
   Uxn_dev_write_short(uxn, SCREEN_ADDR_PORT, addr);
 }
 
-void screen_draw_one_bit(Uxn *uxn, T *screen, Byte control) {
+void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
   Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
   Short y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
 
@@ -252,6 +252,8 @@ void screen_draw_one_bit(Uxn *uxn, T *screen, Byte control) {
   Byte auto_byte = Uxn_dev_read(uxn, SCREEN_AUTO_PORT);
   Byte auto_x = auto_byte & 0x01;
   Byte auto_y = auto_byte & 0x02;
+
+  Byte two_bit_mode = control & 0x80;
 
   int dirX = flip_x ? -1 : 1;
   int dirY = flip_y ? -1 : 1;
@@ -264,7 +266,11 @@ void screen_draw_one_bit(Uxn *uxn, T *screen, Byte control) {
       fg_layer ? screen->fg_buffer : screen->bg_buffer;
 
   // Read sprite data
-  read_1bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
+  if (two_bit_mode) {
+    read_2bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
+  } else {
+    read_1bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
+  }
 
   // The definition of dx and dy looks confusing
   // because of the test for auto_y in dx and vice versa.
@@ -289,72 +295,12 @@ void screen_draw_one_bit(Uxn *uxn, T *screen, Byte control) {
     EndTextureMode();
 
     if (auto_addr) {
-      shift_sprite_addr(uxn, false);
-      read_1bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
-    }
-  }
-
-  if (auto_x) {
-    x += dirX * SPRITE_WIDTH;
-    Uxn_dev_write_short(uxn, SCREEN_X_PORT, x);
-  }
-
-  if (auto_y) {
-    y += dirY * SPRITE_HEIGHT;
-    Uxn_dev_write_short(uxn, SCREEN_Y_PORT, y);
-  }
-}
-
-void screen_draw_two_bit(Uxn *uxn, T *screen, Byte control) {
-  Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
-  Short y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
-
-  Byte flip_x = control & 0x10;
-  Byte flip_y = control & 0x20;
-  Byte color = control & 0xf;
-
-  Byte auto_byte = Uxn_dev_read(uxn, SCREEN_AUTO_PORT);
-  Byte auto_x = auto_byte & 0x01;
-  Byte auto_y = auto_byte & 0x02;
-
-  int dirX = flip_x ? -1 : 1;
-  int dirY = flip_y ? -1 : 1;
-
-  Byte auto_addr = auto_byte & 0x04;
-  Byte auto_length = (auto_byte & 0xf0) >> 4;
-
-  Byte fg_layer = control & 0x40;
-  RenderTexture2D layer_texture =
-      fg_layer ? screen->fg_buffer : screen->bg_buffer;
-
-  // Read sprite data
-  read_2bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
-
-  // The definition of dx and dy looks confusing
-  // because of the test for auto_y in dx and vice versa.
-  //
-  // This is intended!
-  //
-  // According to the Varvara spec, extra sprites are drawn as columns moving
-  // rightward for auto-x and as rows moving downward for auto-y
-  float dx = auto_y ? dirX * SPRITE_WIDTH : 0;
-  float dy = auto_x ? dirY * SPRITE_HEIGHT : 0;
-
-  for (int i = 0; i <= auto_length; i++) {
-    BeginTextureMode(layer_texture);
-    BeginBlendMode(BLEND_CUSTOM);
-    DrawTexturePro(
-        screen->sprite_buffer.texture,
-        (Rectangle){0, 0, dirX * SPRITE_WIDTH, dirY * -SPRITE_HEIGHT},
-        (Rectangle){x + i * dx, y + i * dy, SPRITE_WIDTH, SPRITE_HEIGHT},
-        (Vector2){0, 0}, 0, WHITE);
-
-    EndBlendMode();
-    EndTextureMode();
-
-    if (auto_addr) {
-      shift_sprite_addr(uxn, true);
-      read_2bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
+      shift_sprite_addr(uxn, two_bit_mode);
+      if (two_bit_mode) {
+        read_2bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
+      } else {
+        read_1bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
+      }
     }
   }
 
@@ -370,14 +316,7 @@ void screen_draw_two_bit(Uxn *uxn, T *screen, Byte control) {
 }
 
 void screen_sprite_port(Uxn *uxn, T *screen) {
-  Byte control = Uxn_dev_read(uxn, SCREEN_SPRITE_PORT);
-  Byte two_bit_mode = control & 0x80;
-
-  if (two_bit_mode) {
-    screen_draw_two_bit(uxn, screen, control);
-  } else {
-    screen_draw_one_bit(uxn, screen, control);
-  }
+  screen_draw_sprite(uxn, screen, Uxn_dev_read(uxn, SCREEN_SPRITE_PORT));
 }
 
 void screen_change_palette(Uxn *uxn) {
