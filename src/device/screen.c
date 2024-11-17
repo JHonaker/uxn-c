@@ -118,7 +118,10 @@ static Color sprite_color(Color palette[], Byte control, int color_number) {
 
   Byte color = blending[color_number][blend_mode];
 
-  return (color_number == 0 && fg_layer) ? BLANK : palette[color];
+  bool opaque = color_number % 5 != 0;
+
+
+  return (opaque || blend_mode) ? palette[color] : BLANK;
 }
 
 void screen_pixel_port(Uxn* uxn, T* screen) {
@@ -177,7 +180,7 @@ void screen_pixel_port(Uxn* uxn, T* screen) {
   }
 }
 
-void read_1bpp_sprite(Uxn* uxn, RenderTexture2D buffer, Byte control, Color palette[]) {
+void read_1bpp_sprite(Uxn* uxn, RenderTexture2D* buffer, Byte control, Color palette[]) {
   Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
 
   Byte sprite_data[SPRITE_1BPP_BUFFER_SIZE] = {0};
@@ -185,7 +188,7 @@ void read_1bpp_sprite(Uxn* uxn, RenderTexture2D buffer, Byte control, Color pale
     sprite_data[i] = Uxn_mem_read(uxn, addr + i);
   }
 
-  BeginTextureMode(buffer);
+  BeginTextureMode(*buffer);
   BeginBlendMode(BLEND_CUSTOM);
 
   ClearBackground(BLANK);
@@ -205,7 +208,7 @@ void read_1bpp_sprite(Uxn* uxn, RenderTexture2D buffer, Byte control, Color pale
   EndTextureMode();
 }
 
-void read_2bpp_sprite(Uxn* uxn, RenderTexture2D buffer, Byte control, Color palette[]) {
+void read_2bpp_sprite(Uxn* uxn, RenderTexture2D* buffer, Byte control, Color palette[]) {
   Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
 
   Byte sprite_data[SPRITE_2BPP_BUFFER_SIZE] = {0};
@@ -213,7 +216,7 @@ void read_2bpp_sprite(Uxn* uxn, RenderTexture2D buffer, Byte control, Color pale
     sprite_data[i] = Uxn_mem_read(uxn, addr + i);
   }
 
-  BeginTextureMode(buffer);
+  BeginTextureMode(*buffer);
   BeginBlendMode(BLEND_CUSTOM);
 
   ClearBackground(BLANK);
@@ -263,7 +266,7 @@ void screen_draw_one_bit(Uxn* uxn, T* screen, Byte control) {
   RenderTexture2D layer_texture = fg_layer ? screen->fg_buffer : screen->bg_buffer;
 
   // Read sprite data
-  read_1bpp_sprite(uxn, screen->sprite_buffer, control, screen->palette);
+  read_1bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
 
   // The definition of dx and dy looks confusing
   // because of the test for auto_y in dx and vice versa.
@@ -291,7 +294,7 @@ void screen_draw_one_bit(Uxn* uxn, T* screen, Byte control) {
 
     if (auto_addr) {
       shift_sprite_addr(uxn, false);
-      read_1bpp_sprite(uxn, screen->sprite_buffer, control, screen->palette);
+      read_1bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
     }
   }
 
@@ -328,7 +331,7 @@ Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
   RenderTexture2D layer_texture = fg_layer ? screen->fg_buffer : screen->bg_buffer;
 
   // Read sprite data
-  read_2bpp_sprite(uxn, screen->sprite_buffer, control, screen->palette);
+  read_2bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
 
   // The definition of dx and dy looks confusing
   // because of the test for auto_y in dx and vice versa.
@@ -356,7 +359,7 @@ Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
 
     if (auto_addr) {
       shift_sprite_addr(uxn, true);
-      read_2bpp_sprite(uxn, screen->sprite_buffer, control, screen->palette);
+      read_2bpp_sprite(uxn, &screen->sprite_buffer, control, screen->palette);
     }
   }
 
