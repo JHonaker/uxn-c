@@ -49,17 +49,6 @@ static void set_erase_with_alpha_mode(void) {
   rlSetBlendFactorsSeparate(RL_ZERO, RL_ONE_MINUS_SRC_ALPHA, RL_ZERO,
                             RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
 }
-
-// I want a mode that can be used to add pixels with RGB 255
-// No Op for RGB 0
-// And erase pixels with RGB 0
-
-static Color pixel_color(Color palette[], Byte control) {
-  Byte fg_layer = control & 0x40;
-  Byte color = control & 0x03;
-
-  return (color == 0 && fg_layer) ? BLANK : palette[color];
-}
 static void sprite_palette(Color palette[4], Color screen_colors[static 4],
                            DrawLayer layer, Byte color_byte) {
 
@@ -162,26 +151,38 @@ void screen_boot(Uxn *uxn) {
 
 
 void screen_pixel_port(Uxn *uxn, T *screen) {
-  Byte control = Uxn_dev_read(uxn, SCREEN_PIXEL_PORT);
-  Byte color = control & 0x03;
-  Byte fg_layer = control & 0x40;
-  RenderTexture2D layer_texture =
-      fg_layer ? screen->fg_buffer : screen->bg_buffer;
-  Byte fill_mode = control & 0x80;
-
   Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT); 
   Short y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
+  
+  Byte control = Uxn_dev_read(uxn, SCREEN_PIXEL_PORT);
 
   Byte flip_x = control & 0x10;
   Byte flip_y = control & 0x20;
 
+  Byte layer = control & 0x40 ? FG_LAYER : BG_LAYER;
+  Byte color = control & 0x03;
+  
   Byte auto_byte = Uxn_dev_read(uxn, SCREEN_AUTO_PORT);
   Byte auto_x = auto_byte & 0x01;
   Byte auto_y = auto_byte & 0x02;
 
-  Color draw_color = pixel_color(screen->palette, control);
+  Byte fill_mode = control & 0x80;
+
+  Color draw_color = screen->palette[color];
+
+  bool erase_mode = color == 0 && layer == FG_LAYER;
+  if (erase_mode) {
+    draw_color = WHITE;
+    set_erase_with_alpha_mode();
+  }
+
+  RenderTexture2D layer_texture =
+    layer == FG_LAYER ? screen->fg_buffer : screen->bg_buffer;
 
   BeginTextureMode(layer_texture);
+  if (erase_mode) {
+    BeginBlendMode(BLEND_CUSTOM_SEPARATE);
+  }
 
   if (fill_mode) {
 
@@ -195,7 +196,9 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
   } else {
     DrawPixel(x, y, screen->palette[color]);
   }
-
+  if (erase_mode) {
+    EndBlendMode();
+  }
   EndTextureMode();
 
   if (auto_x) {
@@ -327,9 +330,8 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
   Byte auto_addr = auto_byte & 0x04;
   Byte auto_length = (auto_byte & 0xf0) >> 4;
 
-  Byte fg_layer = control & 0x40;
   RenderTexture2D layer_texture =
-      fg_layer ? screen->fg_buffer : screen->bg_buffer;
+      layer == FG_LAYER ? screen->fg_buffer : screen->bg_buffer;
 
   // Read sprite data
   if (two_bit_mode) {
