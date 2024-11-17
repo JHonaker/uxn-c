@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <raylib.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "uxn.h"
@@ -45,20 +47,30 @@ void Uxn_deo_dispatch(Uxn* uxn, Byte addr) {
   }
 }
 
-int main(int argc, const char* argv[]) {
+int main(int argc, char* argv[]) {
 
   if (argc < 2) {
     printf("Usage: %s <rom>\n", argv[0]);
     return 1;
   }
 
-  const char* rom_filename = argv[1];
+  int scale = 1;
 
-  // TODO: Use optind to parse any additional arguments
-  // Good example in `man getopt 3`
+  int opt;
+  while ((opt = getopt(argc, argv, "s:")) != -1) {
+    switch (opt) {
+      case 's':
+        scale = atoi(optarg);
+        break;
+      default:
+        fprintf(stderr, "Usage: %s [-s scale] <rom>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+  }
 
+  const char* rom_filename = argv[optind];
 
-  ScreenT* screen = screen_new(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, 1);
+  ScreenT* screen = screen_new(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, scale);
   
   Uxn* uxn = Uxn_new(screen);
 
