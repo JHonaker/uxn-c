@@ -6,6 +6,7 @@
 #include "screen.h"
 #include "system.h"
 
+#define ERASE WHITE;
 #define T RaylibScreen
 
 // clang-format off
@@ -35,20 +36,6 @@ static const Byte color_table[16][4] = {
 
 // clang-format on
 
-static void set_transparent_mode(void) {
-  rlSetBlendFactorsSeparate(RL_ONE, RL_ZERO, RL_ONE, RL_ZERO, RL_FUNC_ADD,
-                            RL_FUNC_ADD);
-}
-
-static void set_clear_mode(void) {
-  rlSetBlendFactorsSeparate(RL_ZERO, RL_ONE, RL_ONE, RL_ZERO, RL_FUNC_ADD,
-                            RL_FUNC_ADD);
-}
-
-static void set_erase_with_alpha_mode(void) {
-  rlSetBlendFactorsSeparate(RL_ZERO, RL_ONE_MINUS_SRC_ALPHA, RL_ZERO,
-                            RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
-}
 static void sprite_palette(Color palette[4], Color screen_colors[static 4],
                            DrawLayer layer, Byte color_byte) {
 
@@ -87,7 +74,10 @@ void screen_init(T *screen, int width, int height, int scale) {
   ClearBackground(BLANK);
   EndTextureMode();
 
-  set_transparent_mode();
+  // When BeginBlendMode(BLEND_CUSTOM_SEPARATE) is called, these blend factors
+  // allow erasing with ERASE, when it's off it's standard BLEND_ALPHA
+  rlSetBlendFactorsSeparate(RL_ZERO, RL_ONE_MINUS_SRC_ALPHA, RL_ZERO,
+                            RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
 }
 
 void screen_destroy(T *screen) {
@@ -172,8 +162,7 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
 
   bool erase_mode = color == 0 && layer == FG_LAYER;
   if (erase_mode) {
-    draw_color = WHITE;
-    set_erase_with_alpha_mode();
+    draw_color = ERASE;
   }
 
   RenderTexture2D layer_texture =
@@ -320,8 +309,7 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
   bool erase_mode = color == 0 && !two_bit_mode;
 
   if (erase_mode) {
-    palette[1] = WHITE;
-    set_erase_with_alpha_mode();
+    palette[1] = ERASE;
   }
 
   int dirX = flip_x ? -1 : 1;
