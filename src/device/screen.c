@@ -79,7 +79,7 @@ void screen_redraw(Uxn *uxn, T *screen) {
 
   BeginDrawing();
 
-  ClearBackground(RAYWHITE);
+  ClearBackground(screen->palette[0]);
 
   draw_buffer(&screen->bg_buffer, screen->scale);
   draw_buffer(&screen->fg_buffer, screen->scale);
