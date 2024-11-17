@@ -169,7 +169,7 @@ void Uxn_mem_zero(Uxn* uxn, bool soft) {
 }
 
 void Uxn_mem_load(Uxn* uxn, Byte program[], unsigned long size, Short addr) {
-  return Uxn_page_load(uxn, program, size, 0, addr);
+  Uxn_page_load(uxn, program, size, 0, addr);
 }
 
 Byte Uxn_mem_read(Uxn* uxn, Short address) {
