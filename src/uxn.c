@@ -328,21 +328,21 @@ Short op_nip(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Stack *stack = return_mode ? uxn->ret : uxn->work;
   Byte ptr = Stack_get_ptr(stack);
 
-  Byte b = Uxn_pop(uxn, return_mode);
-  Byte a = Uxn_pop(uxn, return_mode);
-
   if (short_mode) {
-    Uxn_pop(uxn, return_mode);
-    Uxn_pop(uxn, return_mode);
-  }
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
-  if (keep_mode)
-    Stack_set_ptr(stack, ptr);
+    if (keep_mode)
+      Stack_set_ptr(stack, ptr);
 
-  if (short_mode) {
-    Uxn_push(uxn, a, return_mode);
-    Uxn_push(uxn, b, return_mode);
+    Uxn_push_short(uxn, b, return_mode);
   } else {
+    Byte b = Uxn_pop(uxn, return_mode);
+    Byte a = Uxn_pop(uxn, return_mode);
+
+    if (keep_mode)
+      Stack_set_ptr(stack, ptr);
+
     Uxn_push(uxn, b, return_mode);
   }
 
@@ -973,6 +973,7 @@ Short op_deo(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
     Uxn_dev_write_short(uxn, addr, a);
 
     Uxn_deo_dispatch(uxn, addr);
+    Uxn_deo_dispatch(uxn, addr + 1);
 
   } else {
     Byte a = Uxn_pop(uxn, return_mode);
