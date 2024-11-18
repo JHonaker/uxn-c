@@ -39,9 +39,11 @@ typedef enum { ONE_BIT, TWO_BIT } SpriteMode;
 typedef enum { BG_LAYER, FG_LAYER } DrawLayer;
 
 struct T {
-  RenderTexture2D bg_buffer;
-  RenderTexture2D fg_buffer;
-  RenderTexture2D sprite_buffer;
+  Image sprite_buffer;
+  Image bg_buffer;
+  Image fg_buffer;
+  Texture2D bg_tex;
+  Texture2D fg_tex;
   Short width;
   Short height;
   int scale;

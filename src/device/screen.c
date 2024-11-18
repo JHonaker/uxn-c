@@ -52,39 +52,57 @@ static void sprite_palette(Color palette[4], Color screen_colors[static 4],
   }
 }
 
+bool color_eq(Color a, Color b) {
+  return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+}
+
+void screen_ImageErase(Image *img, Image eraser, int dstX, int dstY,
+                       Color eraser_color) {
+  // Security check to avoid program crash
+  if (img->data == NULL || img->width == 0 || img->height == 0 ||
+      eraser.data == NULL || eraser.width == 0 || eraser.height == 0)
+    return;
+
+  for (int y = 0; y < eraser.height; y++) {
+    for (int x = 0; x < eraser.width; x++) {
+      if (dstX + x >= img->width || dstY + y >= img->height || dstX + x < 0 ||
+          dstY + y < 0)
+        continue;
+
+      Color src_color = GetImageColor(eraser, x, y);
+      if (color_eq(src_color, eraser_color)) {
+        ImageDrawPixel(img, dstX + x, dstY + y, BLANK);
+      }
+    }
+  }
+}
+
 void screen_init(T *screen, int width, int height, int scale) {
   InitWindow(width * scale, height * scale, "Uxn");
 
   *screen = (T){
-      .bg_buffer = LoadRenderTexture(width, height),
-      .fg_buffer = LoadRenderTexture(width, height),
-      .sprite_buffer = LoadRenderTexture(SPRITE_WIDTH, SPRITE_HEIGHT),
+      .sprite_buffer = GenImageColor(SPRITE_WIDTH, SPRITE_HEIGHT, BLANK),
+      .bg_buffer = GenImageColor(width, height, BLANK),
+      .fg_buffer = GenImageColor(width, height, BLANK),
       .width = width,
       .height = height,
       .scale = scale,
       .palette = {RED, GREEN, BLUE, MAGENTA},
   };
 
+  screen->bg_tex = LoadTextureFromImage(screen->bg_buffer);
+  screen->fg_tex = LoadTextureFromImage(screen->fg_buffer);
+
   SetTargetFPS(60);
-
-  BeginTextureMode(screen->fg_buffer);
-  ClearBackground(BLANK);
-  EndTextureMode();
-  BeginTextureMode(screen->bg_buffer);
-  ClearBackground(BLANK);
-  EndTextureMode();
-
-  // When BeginBlendMode(BLEND_CUSTOM_SEPARATE) is called, these blend factors
-  // allow erasing with ERASE, when it's off it's standard BLEND_ALPHA
-  rlSetBlendFactorsSeparate(RL_ZERO, RL_ONE_MINUS_SRC_ALPHA, RL_ZERO,
-                            RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
 }
 
 void screen_destroy(T *screen) {
 
-  UnloadRenderTexture(screen->fg_buffer);
-  UnloadRenderTexture(screen->bg_buffer);
-  UnloadRenderTexture(screen->sprite_buffer);
+  UnloadImage(screen->sprite_buffer);
+  UnloadImage(screen->bg_buffer);
+  UnloadImage(screen->fg_buffer);
+  UnloadTexture(screen->fg_tex);
+  UnloadTexture(screen->bg_tex);
 
   CloseWindow();
 }
@@ -100,16 +118,13 @@ void screen_delete(T *screen) {
   free(screen);
 }
 
-static void draw_buffer(RenderTexture2D *buffer, int scale) {
-  Texture2D texture = buffer->texture;
+static void draw_buffer(Image *img, Texture2D *tex, int scale) {
+
+  UpdateTexture(*tex, img->data);
 
   DrawTexturePro(
-      texture,
-      // Source rect needs to flip Y axis
-      (Rectangle){0, 0, (float)texture.width, (float)-texture.height},
-      // Dest rect is scaled up
-      (Rectangle){0, 0, (float)texture.width * scale,
-                  (float)texture.height * scale},
+      *tex, (Rectangle){0, 0, (float)tex->width, (float)tex->height},
+      (Rectangle){0, 0, (float)tex->width * scale, (float)tex->height * scale},
       (Vector2){0, 0}, 0, WHITE);
 }
 
@@ -119,8 +134,8 @@ void screen_redraw(Uxn *uxn, T *screen) {
 
   ClearBackground(screen->palette[0]);
 
-  draw_buffer(&screen->bg_buffer, screen->scale);
-  draw_buffer(&screen->fg_buffer, screen->scale);
+  draw_buffer(&screen->bg_buffer, &screen->bg_tex, screen->scale);
+  draw_buffer(&screen->fg_buffer, &screen->fg_tex, screen->scale);
 
   EndDrawing();
 
@@ -135,12 +150,10 @@ void screen_boot(Uxn *uxn) {
   Uxn_dev_write_short(uxn, SCREEN_HEIGHT_PORT, screen->height);
 }
 
-
-
 void screen_pixel_port(Uxn *uxn, T *screen) {
-  Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT); 
+  Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
   Short y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
-  
+
   Byte control = Uxn_dev_read(uxn, SCREEN_PIXEL_PORT);
 
   Byte flip_x = control & 0x10;
@@ -148,7 +161,7 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
 
   Byte layer = control & 0x40 ? FG_LAYER : BG_LAYER;
   Byte color = control & 0x03;
-  
+
   Byte auto_byte = Uxn_dev_read(uxn, SCREEN_AUTO_PORT);
   Byte auto_x = auto_byte & 0x01;
   Byte auto_y = auto_byte & 0x02;
@@ -162,13 +175,8 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
     draw_color = ERASE;
   }
 
-  RenderTexture2D layer_texture =
-    layer == FG_LAYER ? screen->fg_buffer : screen->bg_buffer;
-
-  BeginTextureMode(layer_texture);
-  if (erase_mode) {
-    BeginBlendMode(BLEND_CUSTOM_SEPARATE);
-  }
+  Image *layer_buffer =
+      layer == FG_LAYER ? &screen->fg_buffer : &screen->bg_buffer;
 
   if (fill_mode) {
 
@@ -177,15 +185,12 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
     int rect_width = flip_x ? x : screen->width - x;
     int rect_height = flip_y ? y : screen->height - y;
 
-    DrawRectangle(rect_x, rect_y, rect_width, rect_height, draw_color);
+    ImageDrawRectangle(layer_buffer, rect_x, rect_y, rect_width, rect_height,
+                       draw_color);
 
   } else {
-    DrawPixel(x, y, screen->palette[color]);
+    ImageDrawPixel(layer_buffer, x, y, screen->palette[color]);
   }
-  if (erase_mode) {
-    EndBlendMode();
-  }
-  EndTextureMode();
 
   if (auto_x) {
     x++;
@@ -206,7 +211,6 @@ void decode_1bpp_sprite(Byte sprite_data[SPRITE_BUFFER_SIZE],
                         Byte decoded_data[SPRITE_HEIGHT][SPRITE_WIDTH]) {
   for (int i = 0; i < SPRITE_HEIGHT; i++) {
     Byte row = sprite_data[i];
-    Byte decoded_row = 0;
     for (int j = 0; j < SPRITE_WIDTH; j++) {
       Byte bit = (row >> j) & 0x01;
       decoded_data[i][7 - j] = bit;
@@ -227,8 +231,7 @@ void decode_2bpp_sprite(Byte low_bit_data[SPRITE_BUFFER_SIZE],
     }
   }
 }
-void read_1bpp_sprite(Uxn *uxn, RenderTexture2D *buffer, Byte control,
-                      Color palette[]) {
+void read_1bpp_sprite(Uxn *uxn, Image *buffer, Color palette[]) {
   Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
 
   Byte sprite_data[SPRITE_BUFFER_SIZE] = {0};
@@ -237,22 +240,17 @@ void read_1bpp_sprite(Uxn *uxn, RenderTexture2D *buffer, Byte control,
   Byte decoded_data[SPRITE_HEIGHT][SPRITE_WIDTH] = {0};
   decode_1bpp_sprite(sprite_data, decoded_data);
 
-  BeginTextureMode(*buffer);
-
-  ClearBackground(BLANK);
+  ImageClearBackground(buffer, BLANK);
 
   for (int j = 0; j < SPRITE_HEIGHT; j++) {
     for (int i = 0; i < SPRITE_WIDTH; i++) {
       Color color = palette[decoded_data[j][i]];
-      DrawPixel(i, j, color);
+      ImageDrawPixel(buffer, i, j, color);
     }
   }
-
-  EndTextureMode();
 }
 
-void read_2bpp_sprite(Uxn *uxn, RenderTexture2D *buffer, Byte control,
-                      Color palette[]) {
+void read_2bpp_sprite(Uxn *uxn, Image *buffer, Color palette[]) {
   Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
 
   Byte low_bit_data[SPRITE_BUFFER_SIZE] = {0};
@@ -263,18 +261,14 @@ void read_2bpp_sprite(Uxn *uxn, RenderTexture2D *buffer, Byte control,
   Byte decoded_data[SPRITE_HEIGHT][SPRITE_WIDTH] = {0};
   decode_2bpp_sprite(low_bit_data, high_bit_data, decoded_data);
 
-  BeginTextureMode(*buffer);
-
-  ClearBackground(BLANK);
+  ImageClearBackground(buffer, BLANK);
 
   for (int j = 0; j < SPRITE_HEIGHT; j++) {
     for (int i = 0; i < SPRITE_WIDTH; i++) {
       Color color = palette[decoded_data[j][i]];
-      DrawPixel(i, j, color);
+      ImageDrawPixel(buffer, i, j, color);
     }
   }
-
-  EndTextureMode();
 }
 
 static void shift_sprite_addr(Uxn *uxn, bool two_bit_mode) {
@@ -313,14 +307,14 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
   Byte auto_addr = auto_byte & 0x04;
   Byte auto_length = (auto_byte & 0xf0) >> 4;
 
-  RenderTexture2D layer_texture =
+  Image layer_buffer =
       layer == FG_LAYER ? screen->fg_buffer : screen->bg_buffer;
 
   // Read sprite data
   if (two_bit_mode) {
-    read_2bpp_sprite(uxn, &screen->sprite_buffer, control, palette);
+    read_2bpp_sprite(uxn, &screen->sprite_buffer, palette);
   } else {
-    read_1bpp_sprite(uxn, &screen->sprite_buffer, control, palette);
+    read_1bpp_sprite(uxn, &screen->sprite_buffer, palette);
   }
 
   /**
@@ -336,42 +330,51 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
   float dx = auto_y ? dirX * SPRITE_WIDTH : 0;
   float dy = auto_x ? dirY * SPRITE_HEIGHT : 0;
 
-  for (int i = 0; i <= auto_length; i++) {
-    BeginTextureMode(layer_texture);
+  size_t num_sprites = auto_x || auto_y ? auto_length + 1 : 1;
 
-    if (erase_mode) {
-      BeginBlendMode(BLEND_CUSTOM_SEPARATE);
+  for (size_t i = 0; i < num_sprites; i++) {
+    if (y + i * dy > screen->height || x + i * dx > screen->width) {
+      // continue;
     }
 
-    DrawTexturePro(
-        screen->sprite_buffer.texture,
-        (Rectangle){0, 0, dirX * SPRITE_WIDTH, dirY * -SPRITE_HEIGHT},
-        (Rectangle){x + i * dx, y + i * dy, SPRITE_WIDTH, SPRITE_HEIGHT},
-        (Vector2){0, 0}, 0, WHITE);
+    if (flip_x)
+      ImageFlipHorizontal(&screen->sprite_buffer);
+    if (flip_y)
+      ImageFlipVertical(&screen->sprite_buffer);
 
     if (erase_mode) {
-      EndBlendMode();
+      screen_ImageErase(&layer_buffer, screen->sprite_buffer, x + i * dx,
+                        y + i * dy, WHITE);
+    } else {
+      ImageDraw(
+          &layer_buffer, screen->sprite_buffer,
+          (Rectangle){0, 0, SPRITE_WIDTH, SPRITE_HEIGHT},
+          (Rectangle){x + i * dx, y + i * dy, SPRITE_WIDTH, SPRITE_HEIGHT},
+          WHITE);
     }
 
-    EndTextureMode();
+    if (flip_x)
+      ImageFlipHorizontal(&screen->sprite_buffer);
+    if (flip_y)
+      ImageFlipVertical(&screen->sprite_buffer);
 
     if (auto_addr) {
       shift_sprite_addr(uxn, two_bit_mode);
       if (two_bit_mode) {
-        read_2bpp_sprite(uxn, &screen->sprite_buffer, control, palette);
+        read_2bpp_sprite(uxn, &screen->sprite_buffer, palette);
       } else {
-        read_1bpp_sprite(uxn, &screen->sprite_buffer, control, palette);
+        read_1bpp_sprite(uxn, &screen->sprite_buffer, palette);
       }
     }
   }
 
   if (auto_x) {
-    x += dirX * SPRITE_WIDTH;
+    x += (SignedShort)(dirX * SPRITE_WIDTH);
     Uxn_dev_write_short(uxn, SCREEN_X_PORT, x);
   }
 
   if (auto_y) {
-    y += dirY * SPRITE_HEIGHT;
+    y += (SignedShort)(dirY * SPRITE_HEIGHT);
     Uxn_dev_write_short(uxn, SCREEN_Y_PORT, y);
   }
 }
@@ -382,7 +385,6 @@ void screen_sprite_port(Uxn *uxn, T *screen) {
 
 void screen_change_palette(Uxn *uxn) {
   RaylibScreen *screen = Uxn_get_screen(uxn);
-
 
   Short red_bits = Uxn_dev_read_short(uxn, SYSTEM_RED_PORT);
   Short green_bits = Uxn_dev_read_short(uxn, SYSTEM_GREEN_PORT);
@@ -421,6 +423,16 @@ void screen_resize(Uxn *uxn) {
 
   screen->width = Uxn_dev_read_short(uxn, SCREEN_WIDTH_PORT);
   screen->height = Uxn_dev_read_short(uxn, SCREEN_HEIGHT_PORT);
+
+  UnloadImage(screen->bg_buffer);
+  UnloadImage(screen->fg_buffer);
+  UnloadTexture(screen->bg_tex);
+  UnloadTexture(screen->fg_tex);
+
+  screen->bg_buffer = GenImageColor(screen->width, screen->height, BLANK);
+  screen->fg_buffer = GenImageColor(screen->width, screen->height, BLANK);
+  screen->bg_tex = LoadTextureFromImage(screen->bg_buffer);
+  screen->fg_tex = LoadTextureFromImage(screen->fg_buffer);
 
   SetWindowSize(screen->width * screen->scale, screen->height * screen->scale);
 }
