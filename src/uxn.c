@@ -149,23 +149,23 @@ void Uxn_mem_load(Uxn *uxn, Byte program[], unsigned long size, Short addr) {
   Uxn_page_load(uxn, program, size, 0, addr);
 }
 
-Byte Uxn_mem_read(Uxn *uxn, Short address) { return uxn->ram[address]; }
+Byte Uxn_mem_read(Uxn *uxn, Short address) { return uxn->ram[PAGE_ADDR(0, address)]; }
 
 void Uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[size], Short address) {
   memcpy(buffer, &uxn->ram[address], size);
 }
 
 Short Uxn_mem_read_short(Uxn *uxn, Short address) {
-  return (uxn->ram[address] << 8) | uxn->ram[address + 1];
+  return (uxn->ram[PAGE_ADDR(0, address)] << 8) | uxn->ram[PAGE_ADDR(0, address + 1)];
 }
 
 void Uxn_mem_write(Uxn *uxn, Short address, Byte value) {
-  uxn->ram[address] = value;
+  uxn->ram[PAGE_ADDR(0, address)] = value;
 }
 
 void Uxn_mem_write_short(Uxn *uxn, Short address, Short value) {
-  uxn->ram[address] = value >> 8;
-  uxn->ram[address + 1] = value & 0xff;
+  uxn->ram[PAGE_ADDR(0, address)] = value >> 8;
+  uxn->ram[PAGE_ADDR(0, address + 1)] = value & 0xff;
 }
 
 Byte Uxn_zero_page_read(Uxn *uxn, Byte address) {
@@ -198,14 +198,14 @@ void Uxn_dev_zero(Uxn *uxn) {
 Byte Uxn_dev_read(Uxn *uxn, Byte addr) { return uxn->dev[addr]; }
 
 Short Uxn_dev_read_short(Uxn *uxn, Byte addr) {
-  return (uxn->dev[addr] << 8 | uxn->dev[addr + 1]);
+  return (uxn->dev[addr & 0xff] << 8 | uxn->dev[(addr + 1) & 0xff]);
 }
 
-void Uxn_dev_write(Uxn *uxn, Byte addr, Byte value) { uxn->dev[addr] = value; }
+void Uxn_dev_write(Uxn *uxn, Byte addr, Byte value) { uxn->dev[addr & 0xff] = value; }
 
 void Uxn_dev_write_short(Uxn *uxn, Byte addr, Short value) {
-  uxn->dev[addr] = (Byte)(value >> 8);
-  uxn->dev[addr + 1] = (Byte)(value & 0xff);
+  uxn->dev[addr & 0xff] = (Byte)(value >> 8);
+  uxn->dev[(addr + 1) & 0xff] = (Byte)(value & 0xff);
 }
 
 // Immediate Ops
@@ -1269,7 +1269,7 @@ bool Uxn_eval(Uxn *uxn, Short pc) {
   bool continue_execution = true;
 
   while (continue_execution) {
-    Byte full_op = uxn->ram[pc];
+    Byte full_op = Uxn_mem_read(uxn, pc);
     pc += 1;
 
     Byte keep_mode = is_keep_mode(full_op);
