@@ -79,7 +79,7 @@ void Stack_dump(Stack *stack, const char *name) {
   printf("%s ", name);
   for (Byte i = stack->ptr - print_depth; i != stack->ptr; i++) {
     printf("%02x", stack->data[i]);
-    printf(i == (Byte)(stack->ptr - 1) ? "|" : " ");
+    printf(i == 255 ? "|" : " ");
   }
   printf("<\n");
 }
