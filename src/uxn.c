@@ -879,7 +879,7 @@ Short op_lda(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
     Stack_set_ptr(stack, ptr);
 
   if (short_mode) {
-    Byte a = Uxn_mem_read_short(uxn, addr);
+    Short a = Uxn_mem_read_short(uxn, addr);
     Uxn_push_short(uxn, a, return_mode);
   } else {
     Byte a = Uxn_mem_read(uxn, addr);
