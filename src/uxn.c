@@ -114,6 +114,17 @@ Byte Uxn_pop(Uxn *uxn, bool from_return_stack) {
   }
 }
 
+Short Uxn_pop_short(Uxn *uxn, bool from_return_stack) {
+  Byte low = Uxn_pop(uxn, from_return_stack);
+  Byte high = Uxn_pop(uxn, from_return_stack);
+  return (high << 8) | low;
+}
+
+void Uxn_push_short(Uxn *uxn, Short value, bool to_return_stack) {
+  Uxn_push(uxn, value >> 8, to_return_stack);
+  Uxn_push(uxn, value & 0xff, to_return_stack);
+}
+
 // Memory operations
 
 Byte Uxn_page_read(Uxn *uxn, Short page, Short addr) {
@@ -140,7 +151,7 @@ void Uxn_mem_load(Uxn *uxn, Byte program[], unsigned long size, Short addr) {
 
 Byte Uxn_mem_read(Uxn *uxn, Short address) { return uxn->ram[address]; }
 
-void Uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[], Short address) {
+void Uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[size], Short address) {
   memcpy(buffer, &uxn->ram[address], size);
 }
 
@@ -150,6 +161,11 @@ Short Uxn_mem_read_short(Uxn *uxn, Short address) {
 
 void Uxn_mem_write(Uxn *uxn, Short address, Byte value) {
   uxn->ram[address] = value;
+}
+
+void Uxn_mem_write_short(Uxn *uxn, Short address, Short value) {
+  uxn->ram[address] = value >> 8;
+  uxn->ram[address + 1] = value & 0xff;
 }
 
 Byte Uxn_zero_page_read(Uxn *uxn, Byte address) {
@@ -188,8 +204,8 @@ Short Uxn_dev_read_short(Uxn *uxn, Byte addr) {
 void Uxn_dev_write(Uxn *uxn, Byte addr, Byte value) { uxn->dev[addr] = value; }
 
 void Uxn_dev_write_short(Uxn *uxn, Byte addr, Short value) {
-  uxn->dev[addr] = value >> 8;
-  uxn->dev[addr + 1] = value & 0xff;
+  uxn->dev[addr] = (Byte)(value >> 8);
+  uxn->dev[addr + 1] = (Byte)(value & 0xff);
 }
 
 // Immediate Ops
@@ -214,8 +230,7 @@ Short op_jmi(Uxn *uxn, Short pc) {
 Short op_jsi(Uxn *uxn, Short pc) {
   // TODO: Check if this is correct
   Short to_push = pc + 2;
-  Uxn_push_ret(uxn, to_push >> 8);
-  Uxn_push_ret(uxn, to_push & 0xff);
+  Uxn_push_short(uxn, to_push, true);
   Short rel_addr = Uxn_mem_read_short(uxn, pc);
   return pc + (SignedShort)rel_addr + 2;
 }
@@ -267,16 +282,12 @@ Short op_inc(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_byte = Uxn_pop(uxn, return_mode);
-    Byte high_byte = Uxn_pop(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Short a = (high_byte << 8) | low_byte;
-    a += 1;
-    Uxn_push(uxn, a >> 8, return_mode);
-    Uxn_push(uxn, a & 0xff, return_mode);
+    Uxn_push_short(uxn, a + 1, return_mode);
   } else {
     Byte a = Uxn_pop(uxn, return_mode);
 
@@ -349,18 +360,14 @@ Short op_swp(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Uxn_push(uxn, high_b, return_mode);
-    Uxn_push(uxn, low_b, return_mode);
-    Uxn_push(uxn, high_a, return_mode);
-    Uxn_push(uxn, low_a, return_mode);
+    Uxn_push_short(uxn, b, return_mode);
+    Uxn_push_short(uxn, a, return_mode);
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
     Byte a = Uxn_pop(uxn, return_mode);
@@ -386,22 +393,16 @@ Short op_rot(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_c = Uxn_pop(uxn, return_mode);
-    Byte high_c = Uxn_pop(uxn, return_mode);
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short c = Uxn_pop_short(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Uxn_push(uxn, high_b, return_mode);
-    Uxn_push(uxn, low_b, return_mode);
-    Uxn_push(uxn, high_c, return_mode);
-    Uxn_push(uxn, low_c, return_mode);
-    Uxn_push(uxn, high_a, return_mode);
-    Uxn_push(uxn, low_a, return_mode);
+    Uxn_push_short(uxn, b, return_mode);
+    Uxn_push_short(uxn, c, return_mode);
+    Uxn_push_short(uxn, a, return_mode);
   } else {
     Byte c = Uxn_pop(uxn, return_mode);
     Byte b = Uxn_pop(uxn, return_mode);
@@ -429,16 +430,13 @@ Short op_dup(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Uxn_push(uxn, high_a, return_mode);
-    Uxn_push(uxn, low_a, return_mode);
-    Uxn_push(uxn, high_a, return_mode);
-    Uxn_push(uxn, low_a, return_mode);
+    Uxn_push_short(uxn, a, return_mode);
+    Uxn_push_short(uxn, a, return_mode);
   } else {
     Byte a = Uxn_pop(uxn, return_mode);
 
@@ -463,20 +461,15 @@ Short op_ovr(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Uxn_push(uxn, high_a, return_mode);
-    Uxn_push(uxn, low_a, return_mode);
-    Uxn_push(uxn, high_b, return_mode);
-    Uxn_push(uxn, low_b, return_mode);
-    Uxn_push(uxn, high_a, return_mode);
-    Uxn_push(uxn, low_a, return_mode);
+    Uxn_push_short(uxn, a, return_mode);
+    Uxn_push_short(uxn, b, return_mode);
+    Uxn_push_short(uxn, a, return_mode);
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
     Byte a = Uxn_pop(uxn, return_mode);
@@ -506,12 +499,10 @@ Short op_equ(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   bool result = false;
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
-    result = (high_a == high_b && low_a == low_b);
+    result = (a == b);
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
     Byte a = Uxn_pop(uxn, return_mode);
@@ -540,12 +531,10 @@ Short op_neq(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   bool result = false;
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
-    result = (high_a != high_b || low_a != low_b);
+    result = (a != b);
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
     Byte a = Uxn_pop(uxn, return_mode);
@@ -573,13 +562,8 @@ Short op_gth(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   bool result = false;
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
-
-    Short a = (high_a << 8) | low_a;
-    Short b = (high_b << 8) | low_b;
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     result = (a > b);
   } else {
@@ -588,6 +572,7 @@ Short op_gth(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
 
     result = (a > b);
   }
+
   if (keep_mode)
     Stack_set_ptr(stack, ptr);
 
@@ -609,13 +594,8 @@ Short op_lth(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   bool result = false;
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
-
-    Short a = (high_a << 8) | low_a;
-    Short b = (high_b << 8) | low_b;
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     result = (a < b);
   } else {
@@ -645,9 +625,7 @@ Short op_jmp(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
 
   if (short_mode) {
     // Jump to absolute address
-    Byte low_addr = Uxn_pop(uxn, return_mode);
-    Byte high_addr = Uxn_pop(uxn, return_mode);
-    Short addr = (high_addr << 8) | low_addr;
+    Short addr = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
@@ -677,9 +655,7 @@ Short op_jcn(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_addr = Uxn_pop(uxn, return_mode);
-    Byte high_addr = Uxn_pop(uxn, return_mode);
-    Short addr = (high_addr << 8) | low_addr;
+    Short addr = Uxn_pop_short(uxn, return_mode);
 
     Byte test_byte = Uxn_pop(uxn, return_mode);
 
@@ -713,13 +689,10 @@ Short op_jsr(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Stack *stack = return_mode ? uxn->ret : uxn->work;
   Byte ptr = Stack_get_ptr(stack);
 
-  Uxn_push(uxn, pc >> 8, !return_mode);
-  Uxn_push(uxn, pc & 0xff, !return_mode);
+  Uxn_push_short(uxn, pc, !return_mode);
 
   if (short_mode) {
-    Byte low_addr = Uxn_pop(uxn, return_mode);
-    Byte high_addr = Uxn_pop(uxn, return_mode);
-    Short addr = (high_addr << 8) | low_addr;
+    Short addr = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
@@ -749,14 +722,12 @@ Short op_sth(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Uxn_push(uxn, high_a, !return_mode);
-    Uxn_push(uxn, low_a, !return_mode);
+    Uxn_push_short(uxn, a, !return_mode);
   } else {
     Byte a = Uxn_pop(uxn, return_mode);
 
@@ -788,8 +759,7 @@ Short op_ldz(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   if (short_mode) {
     Short a = Uxn_zero_page_read_short(uxn, addr);
 
-    Uxn_push(uxn, a >> 8, return_mode);
-    Uxn_push(uxn, a & 0xff, return_mode);
+    Uxn_push_short(uxn, a, return_mode);
   } else {
     Byte a = Uxn_mem_read(uxn, addr);
     Uxn_push(uxn, a, return_mode);
@@ -811,13 +781,12 @@ Short op_stz(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte addr = Uxn_pop(uxn, return_mode);
 
   if (short_mode) {
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Uxn_zero_page_write_short(uxn, addr, (high_a << 8) | low_a);
+    Uxn_zero_page_write_short(uxn, addr, a);
   } else {
     Byte a = Uxn_pop(uxn, return_mode);
 
@@ -849,11 +818,8 @@ Short op_ldr(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Short load_addr = pc + rel_addr;
 
   if (short_mode) {
-    Byte high_a = Uxn_mem_read(uxn, load_addr);
-    Byte low_a = Uxn_mem_read(uxn, load_addr + 1);
-
-    Uxn_push(uxn, high_a, return_mode);
-    Uxn_push(uxn, low_a, return_mode);
+    Short a = Uxn_mem_read_short(uxn, load_addr);
+    Uxn_push_short(uxn, a, return_mode);
   } else {
     Byte a = Uxn_mem_read(uxn, load_addr);
     Uxn_push(uxn, a, return_mode);
@@ -876,16 +842,13 @@ Short op_str(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   SignedByte rel_addr = Uxn_pop(uxn, return_mode);
 
   if (short_mode) {
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
     Short store_addr = pc + rel_addr;
-
-    Uxn_mem_write(uxn, store_addr, high_a);
-    Uxn_mem_write(uxn, store_addr + 1, low_a);
+    Uxn_mem_write_short(uxn, store_addr, a);
   } else {
     Byte a = Uxn_pop(uxn, return_mode);
 
@@ -910,19 +873,14 @@ Short op_lda(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Stack *stack = return_mode ? uxn->ret : uxn->work;
   Byte ptr = Stack_get_ptr(stack);
 
-  Byte low = Uxn_pop(uxn, return_mode);
-  Byte high = Uxn_pop(uxn, return_mode);
-  Short addr = (high << 8) | low;
+  Short addr = Uxn_pop_short(uxn, return_mode);
 
   if (keep_mode)
     Stack_set_ptr(stack, ptr);
 
   if (short_mode) {
-    Byte high_a = Uxn_mem_read(uxn, addr);
-    Byte low_a = Uxn_mem_read(uxn, addr + 1);
-
-    Uxn_push(uxn, high_a, return_mode);
-    Uxn_push(uxn, low_a, return_mode);
+    Byte a = Uxn_mem_read_short(uxn, addr);
+    Uxn_push_short(uxn, a, return_mode);
   } else {
     Byte a = Uxn_mem_read(uxn, addr);
     Uxn_push(uxn, a, return_mode);
@@ -941,19 +899,15 @@ Short op_sta(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Stack *stack = return_mode ? uxn->ret : uxn->work;
   Byte ptr = Stack_get_ptr(stack);
 
-  Byte low = Uxn_pop(uxn, return_mode);
-  Byte high = Uxn_pop(uxn, return_mode);
-  Short addr = (high << 8) | low;
+  Short addr = Uxn_pop_short(uxn, return_mode);
 
   if (short_mode) {
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
-
-    Uxn_mem_write(uxn, addr, high_a);
-    Uxn_mem_write(uxn, addr + 1, low_a);
+    
+    Uxn_mem_write_short(uxn, addr, a);
   } else {
     Byte a = Uxn_pop(uxn, return_mode);
 
@@ -983,18 +937,13 @@ Short op_dei(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
     Stack_set_ptr(stack, ptr);
 
   if (short_mode) {
-    Byte high_a = Uxn_dev_read(uxn, addr);
-    Byte low_a = Uxn_dev_read(uxn, addr + 1);
-
-    Uxn_dei_dispatch(uxn, addr);
-    Uxn_dei_dispatch(uxn, addr + 1);
+    Byte high_a = Uxn_dei_dispatch(uxn, addr);
+    Byte low_a = Uxn_dei_dispatch(uxn, addr + 1);
 
     Uxn_push(uxn, high_a, return_mode);
     Uxn_push(uxn, low_a, return_mode);
   } else {
-    Byte a = Uxn_dev_read(uxn, addr);
-
-    Uxn_dei_dispatch(uxn, addr);
+    Byte a = Uxn_dei_dispatch(uxn, addr);
 
     Uxn_push(uxn, a, return_mode);
   }
@@ -1016,17 +965,14 @@ Short op_deo(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte addr = Uxn_pop(uxn, return_mode);
 
   if (short_mode) {
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Uxn_dev_write(uxn, addr, high_a);
-    Uxn_dev_write(uxn, addr + 1, low_a);
+    Uxn_dev_write_short(uxn, addr, a);
 
     Uxn_deo_dispatch(uxn, addr);
-    Uxn_deo_dispatch(uxn, addr + 1);
 
   } else {
     Byte a = Uxn_pop(uxn, return_mode);
@@ -1053,20 +999,15 @@ Short op_add(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
+
+    Short sum = a + b;
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Short a = (high_a << 8) | low_a;
-    Short b = (high_b << 8) | low_b;
-    Short sum = a + b;
-
-    Uxn_push(uxn, sum >> 8, return_mode);
-    Uxn_push(uxn, sum & 0xff, return_mode);
+    Uxn_push_short(uxn, sum, return_mode);
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
     Byte a = Uxn_pop(uxn, return_mode);
@@ -1092,20 +1033,15 @@ Short op_sub(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
+
+    Short diff = a - b;
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Short a = (high_a << 8) | low_a;
-    Short b = (high_b << 8) | low_b;
-    Short diff = a - b;
-
-    Uxn_push(uxn, diff >> 8, return_mode);
-    Uxn_push(uxn, diff & 0xff, return_mode);
+    Uxn_push_short(uxn, diff, return_mode);
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
     Byte a = Uxn_pop(uxn, return_mode);
@@ -1130,20 +1066,15 @@ Short op_mul(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
+
+    Short prod = a * b;
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Short a = (high_a << 8) | low_a;
-    Short b = (high_b << 8) | low_b;
-    Short prod = a * b;
-
-    Uxn_push(uxn, prod >> 8, return_mode);
-    Uxn_push(uxn, prod & 0xff, return_mode);
+    Uxn_push_short(uxn, prod, return_mode);
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
     Byte a = Uxn_pop(uxn, return_mode);
@@ -1170,24 +1101,17 @@ Short op_div(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Short a = (high_a << 8) | low_a;
-    Short b = (high_b << 8) | low_b;
-
     if (b == 0) {
-      Uxn_push(uxn, 0, return_mode);
-      Uxn_push(uxn, 0, return_mode);
+      Uxn_push_short(uxn, 0, return_mode);
     } else {
       Short quot = a / b;
-      Uxn_push(uxn, quot >> 8, return_mode);
-      Uxn_push(uxn, quot & 0xff, return_mode);
+      Uxn_push_short(uxn, quot, return_mode);
     }
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
@@ -1217,16 +1141,13 @@ Short op_and(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Uxn_push(uxn, high_a & high_b, return_mode);
-    Uxn_push(uxn, low_a & low_b, return_mode);
+    Uxn_push_short(uxn, a & b, return_mode);
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
     Byte a = Uxn_pop(uxn, return_mode);
@@ -1251,16 +1172,13 @@ Short op_ora(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Uxn_push(uxn, high_a | high_b, return_mode);
-    Uxn_push(uxn, low_a | low_b, return_mode);
+    Uxn_push_short(uxn, a | b, return_mode);
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
     Byte a = Uxn_pop(uxn, return_mode);
@@ -1285,16 +1203,13 @@ Short op_eor(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte ptr = Stack_get_ptr(stack);
 
   if (short_mode) {
-    Byte low_b = Uxn_pop(uxn, return_mode);
-    Byte high_b = Uxn_pop(uxn, return_mode);
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short b = Uxn_pop_short(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Uxn_push(uxn, high_a ^ high_b, return_mode);
-    Uxn_push(uxn, low_a ^ low_b, return_mode);
+    Uxn_push_short(uxn, a ^ b, return_mode);
   } else {
     Byte b = Uxn_pop(uxn, return_mode);
     Byte a = Uxn_pop(uxn, return_mode);
@@ -1327,17 +1242,14 @@ Short op_sft(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
   Byte n_right = low_nibble(shift);
 
   if (short_mode) {
-    Byte low_a = Uxn_pop(uxn, return_mode);
-    Byte high_a = Uxn_pop(uxn, return_mode);
+    Short a = Uxn_pop_short(uxn, return_mode);
+
+    Short result = (a >> n_right) << n_left;
 
     if (keep_mode)
       Stack_set_ptr(stack, ptr);
 
-    Short a = (high_a << 8) | low_a;
-    Short result = (a >> n_right) << n_left;
-
-    Uxn_push(uxn, result >> 8, return_mode);
-    Uxn_push(uxn, result & 0xff, return_mode);
+    Uxn_push_short(uxn, result, return_mode);
   } else {
     Byte a = Uxn_pop(uxn, return_mode);
 
