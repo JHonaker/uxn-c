@@ -327,8 +327,8 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
    * rightward for auto-x and as rows moving downward for auto-y
    */
 
-  int dx = auto_y ? dirX * SPRITE_WIDTH : 0;
-  int dy = auto_x ? dirY * SPRITE_HEIGHT : 0;
+  float dx = auto_y ? dirX * SPRITE_WIDTH : 0;
+  float dy = auto_x ? dirY * SPRITE_HEIGHT : 0;
 
   size_t num_sprites = auto_x || auto_y ? auto_length + 1 : 1;
 
