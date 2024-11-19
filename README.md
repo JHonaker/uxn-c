@@ -121,19 +121,19 @@ https://www.raylib.com/index.html
 
 | Port | Name | Status |
 | --- | --- | --- | 
-| 90 | vector* |  |
+| 90 | vector* | Done |
 | 91 |  |  |
-| 92 | x* |  |
+| 92 | x* | Done |
 | 93 |  |  |
-| 94 | y* |  |
+| 94 | y* | Done |
 | 95 |  |  |
-| 96 | state |  |
+| 96 | state | Done |
 | 97 |  |  |
 | 98 |  |  |
 | 99 |  |  |
-| 9a | scrollx* |  |
+| 9a | scrollx* | Done |
 | 9b |  |  |
-| 9c | scrolly* |  |
+| 9c | scrolly* | Done |
 | 9d |  |  |
 | 9e |  |  |
 | 9f |  |  |
