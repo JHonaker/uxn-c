@@ -278,8 +278,8 @@ static void shift_sprite_addr(Uxn *uxn, bool two_bit_mode) {
 }
 
 void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
-  Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
-  Short y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
+  SignedShort x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
+  SignedShort y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
 
   Byte flip_x = control & 0x10;
   Byte flip_y = control & 0x20;
@@ -327,8 +327,8 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
    * rightward for auto-x and as rows moving downward for auto-y
    */
 
-  float dx = auto_y ? dirX * SPRITE_WIDTH : 0;
-  float dy = auto_x ? dirY * SPRITE_HEIGHT : 0;
+  int dx = auto_y ? dirX * SPRITE_WIDTH : 0;
+  int dy = auto_x ? dirY * SPRITE_HEIGHT : 0;
 
   size_t num_sprites = auto_x || auto_y ? auto_length + 1 : 1;
 
@@ -349,7 +349,7 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
       ImageDraw(
           &layer_buffer, screen->sprite_buffer,
           (Rectangle){0, 0, SPRITE_WIDTH, SPRITE_HEIGHT},
-          (Rectangle){x + i * dx, y + i * dy, SPRITE_WIDTH, SPRITE_HEIGHT},
+          (Rectangle){(float)x + i * dx, (float)y + i * dy, SPRITE_WIDTH, SPRITE_HEIGHT},
           WHITE);
     }
 
