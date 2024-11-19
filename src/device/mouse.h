@@ -17,16 +17,6 @@ typedef enum {
   UXN_MOUSE_BUTTON_RIGHT = 0x04,
 } UxnMouseButton;
 
-typedef struct Mouse {
-  Short x;
-  Short y;
-  Byte state;
-  Short scroll_x;
-  Short scroll_y;
-  float scale_x;
-  float scale_y;
-} Mouse;
-
 void mouse_button_down(Uxn *uxn, Byte mask);
 void mouse_button_up(Uxn *uxn, Byte mask);
 void mouse_move(Uxn *uxn, Short x, Short y);
