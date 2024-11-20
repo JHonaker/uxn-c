@@ -6,6 +6,7 @@
 #include "common.h"
 #include "device/console.h"
 #include "device/controller.h"
+#include "device/datetime.h"
 #include "device/mouse.h"
 #include "device/screen.h"
 #include "device/system.h"
@@ -188,6 +189,8 @@ Byte Uxn_dei_dispatch(Uxn *uxn, Byte addr) {
     return system_dei(uxn, addr);
   case 0x20:
     return screen_dei(uxn, addr);
+  case 0xc0:
+    return datetime_dei(uxn, addr);
   default:
     return Uxn_dev_read(uxn, addr);
   }
