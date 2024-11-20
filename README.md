@@ -100,14 +100,14 @@ https://www.raylib.com/index.html
 
 | Port | Name | Status |
 | --- | --- | --- | 
-| 80 | vector* |  |
+| 80 | vector* | Done |
 | 81 |  |  |
-| 82 | button |  |
-| 83 | key |  |
+| 82 | button | Done |
+| 83 | key | Done |
 | 84 |  |  |
-| 85 | P2 |  |
-| 86 | P3 |  |
-| 87 | P4 |  |
+| 85 |  |  |
+| 86 |  |  |
+| 87 |  |  |
 | 88 |  |  |
 | 89 |  |  |
 | 8a |  |  |
