@@ -16,5 +16,6 @@
 #define CONSOLE_TYPE_ARG_SPACER 3
 #define CONSOLE_TYPE_ARG_END 4
 
+void console_poll(Uxn *uxn);
 int console_input_event(Uxn *uxn, Byte c, Byte type);
 void console_deo(Uxn *uxn, Byte addr);

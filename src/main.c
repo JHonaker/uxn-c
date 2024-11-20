@@ -178,6 +178,7 @@ void handle_keyboard(Uxn *uxn) {
 }
 
 void handle_input(Uxn *uxn, int scale_factor) {
+  console_poll(uxn);
   handle_keyboard(uxn);
   handle_mouse(uxn, scale_factor);
 }
