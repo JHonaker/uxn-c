@@ -132,7 +132,7 @@ void file_name_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
   Byte buffer[MAX_FILE_NAME_LENGTH] = {0};
   Short bytes_to_read = MAX_FILE_NAME_LENGTH;
 
-  ENSURE_BUFFER_BOUNDS(name_addr, bytes_to_read)
+  ENSURE_BUFFER_BOUNDS(name_addr, bytes_to_read);
 
   Uxn_mem_buffer_read(uxn, bytes_to_read, buffer, name_addr);
   buffer[bytes_to_read - 1] = '\0';
@@ -174,7 +174,7 @@ void file_write_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
   UxnFileState state = append_mode ? STATE_APPEND : STATE_WRITE;
 
   switch (file->state) {
-  case STATE_INIT && !append_mode:
+  case STATE_INIT:
     if (file_open(file, state))
       file_write(uxn, file, page);
     break;
@@ -234,7 +234,7 @@ void file_stat_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
   Short buffer_addr = Uxn_dev_read_short(uxn, page | FILE_STAT_PORT);
   Short buffer_len = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT); 
 
-  ENSURE_BUFFER_BOUNDS(buffer_addr, buffer_len)
+  ENSURE_BUFFER_BOUNDS(buffer_addr, buffer_len);
 
   char *stat_buffer = calloc(buffer_len, sizeof(char));
   file_stat(file, buffer_len, stat_buffer);
