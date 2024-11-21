@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define ENSURE_BUFFER_BOUNDS(addr, len) \
   if (addr + len > RAM_PAGE_SIZE) {          \
@@ -203,6 +204,47 @@ void file_delete_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
   file_close(file);
 }
 
+void file_stat_error(char *buffer, Short buffer_len) {
+  for (size_t i = 0; i < buffer_len; i++) {
+    buffer[i] = '!';
+  }
+}
+
+void file_stat(struct UxnFile *file, Short buffer_len, char *buffer) {
+  struct stat st;
+  
+  int err = stat(file->name, &st);
+
+  if (err) {
+    file_stat_error(buffer, buffer_len);
+    return;
+  }
+
+  size_t size = st.st_size;
+  const char digit_chars[16] = "0123456789abcdef";
+  for (size_t i = 0; i < buffer_len; i++) {
+    Byte digit = size & 0xf;
+    buffer[buffer_len - (i + 1)] = digit_chars[digit];
+
+    size >>= 4;
+  }
+}
+
+void file_stat_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
+  Short buffer_addr = Uxn_dev_read_short(uxn, page | FILE_STAT_PORT);
+  Short buffer_len = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT); 
+
+  ENSURE_BUFFER_BOUNDS(buffer_addr, buffer_len)
+
+  char *stat_buffer = calloc(buffer_len, sizeof(char));
+  file_stat(file, buffer_len, stat_buffer);
+
+  Uxn_mem_load(uxn, (Byte *)stat_buffer, buffer_len, buffer_addr);
+
+  Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, buffer_len);
+  free(stat_buffer);
+}
+
 void file_deo(Uxn *uxn, Byte addr) {
   struct UxnFile *files = Uxn_get_open_files(uxn);
 
@@ -227,6 +269,7 @@ void file_deo(Uxn *uxn, Byte addr) {
     case FILE_READ_PORT: file_read_port_deo(uxn, file, FILE_PAGE(addr)); break;
     case FILE_WRITE_PORT: file_write_port_deo(uxn, file, FILE_PAGE(addr)); break;
     case FILE_DELETE_PORT: file_delete_port_deo(uxn, file, FILE_PAGE(addr)); break;
+    case FILE_STAT_PORT: file_stat_port_deo(uxn, file, FILE_PAGE(addr)); break;
   }
   // clang-format on
 }
