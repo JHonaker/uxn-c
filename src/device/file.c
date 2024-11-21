@@ -184,6 +184,11 @@ void file_write_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
   }
 }
 
+void file_delete_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
+  remove(file->name);
+  file_close(file);
+}
+
 void file_deo(Uxn *uxn, Byte addr) {
   struct UxnFile *files = Uxn_get_open_files(uxn);
 
@@ -207,6 +212,7 @@ void file_deo(Uxn *uxn, Byte addr) {
     case FILE_NAME_PORT: file_name_port_deo(uxn, file, FILE_PAGE(addr)); break;
     case FILE_READ_PORT: file_read_port_deo(uxn, file, FILE_PAGE(addr)); break;
     case FILE_WRITE_PORT: file_write_port_deo(uxn, file, FILE_PAGE(addr)); break;
+    case FILE_DELETE_PORT: file_delete_port_deo(uxn, file, FILE_PAGE(addr)); break;
   }
   // clang-format on
 }
