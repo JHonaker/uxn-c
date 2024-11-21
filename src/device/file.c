@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define ENSURE_BUFFER_BOUNDS(addr, len) \
+  if (addr + len > RAM_PAGE_SIZE) {          \
+    len = RAM_PAGE_SIZE - addr;              \
+  }
 #define FILE_PAGE(addr) ((addr) & 0xf0)
 #define FILE_IDX(addr) (((addr) & 0xa0) == 0xa0 ? FILE_A : FILE_B)
 
@@ -78,21 +82,6 @@ int file_reopen(struct UxnFile *file, UxnFileState state) {
   file->fp = NULL;
   return file_open(file, state);
 }
-void file_name_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
-
-  file_close(file);
-
-  Short name_addr = Uxn_dev_read_short(uxn, page | FILE_NAME_PORT);
-  Byte buffer[MAX_FILE_NAME_LENGTH] = {0};
-  Uxn_mem_buffer_read(uxn, MAX_FILE_NAME_LENGTH, buffer, name_addr);
-  buffer[MAX_FILE_NAME_LENGTH - 1] = '\0';
-
-  size_t name_len = strlen((char *)buffer);
-  char *name = calloc(name_len + 1, sizeof(char));
-  strcpy(name, (char *)buffer);
-
-  file_init(file, name);
-}
 
 void file_read(Uxn *uxn, struct UxnFile *file, Byte page) {
   if (!file->fp) {
@@ -104,13 +93,54 @@ void file_read(Uxn *uxn, struct UxnFile *file, Byte page) {
   Short bytes_to_read = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
   Short bytes_read = fread(buffer, 1, bytes_to_read, file->fp);
 
-  Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, bytes_read);
-
-  if (!bytes_read)
+  if (!bytes_read) {
+    Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
     return;
+  }
 
   Short write_addr = Uxn_dev_read_short(uxn, page | FILE_READ_PORT);
+  ENSURE_BUFFER_BOUNDS(write_addr, bytes_read);
+
   Uxn_mem_load(uxn, buffer, bytes_read, write_addr);
+  Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, bytes_read);
+}
+
+void file_write(Uxn *uxn, struct UxnFile *file, Byte page) {
+  if (!file->fp) {
+    Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
+    return;
+  }
+
+  Short mem_addr = Uxn_dev_read_short(uxn, page | FILE_WRITE_PORT);
+  Short bytes_to_write = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
+  Byte buffer[FILE_BUFFER_SIZE] = {0};
+
+  ENSURE_BUFFER_BOUNDS(mem_addr, bytes_to_write);
+
+  Uxn_mem_buffer_read(uxn, bytes_to_write, buffer, mem_addr);
+  Short bytes_written = fwrite(buffer, 1, bytes_to_write, file->fp);
+
+  Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, bytes_written);
+}
+
+void file_name_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
+
+  file_close(file);
+
+  Short name_addr = Uxn_dev_read_short(uxn, page | FILE_NAME_PORT);
+  Byte buffer[MAX_FILE_NAME_LENGTH] = {0};
+  Short bytes_to_read = MAX_FILE_NAME_LENGTH;
+
+  ENSURE_BUFFER_BOUNDS(name_addr, bytes_to_read)
+
+  Uxn_mem_buffer_read(uxn, bytes_to_read, buffer, name_addr);
+  buffer[bytes_to_read - 1] = '\0';
+
+  size_t name_len = strlen((char *)buffer);
+  char *name = calloc(name_len + 1, sizeof(char));
+  strcpy(name, (char *)buffer);
+
+  file_init(file, name);
 }
 
 void file_read_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
@@ -136,22 +166,6 @@ void file_read_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
   default:
     break;
   }
-}
-
-void file_write(Uxn *uxn, struct UxnFile *file, Byte page) {
-  if (!file->fp) {
-    Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
-    return;
-  }
-
-  Short mem_addr = Uxn_dev_read_short(uxn, page | FILE_WRITE_PORT);
-  Short bytes_to_write = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
-  Byte buffer[FILE_BUFFER_SIZE] = {0};
-
-  Uxn_mem_buffer_read(uxn, bytes_to_write, buffer, mem_addr);
-  Short bytes_written = fwrite(buffer, 1, bytes_to_write, file->fp);
-
-  Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, bytes_written);
 }
 
 void file_write_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
