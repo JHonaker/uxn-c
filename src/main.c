@@ -7,6 +7,7 @@
 #include "device/console.h"
 #include "device/controller.h"
 #include "device/datetime.h"
+#include "device/file.h"
 #include "device/mouse.h"
 #include "device/screen.h"
 #include "device/system.h"
@@ -118,8 +119,8 @@ int convert_raylib_to_ascii(KeyboardKey key, bool shift_pressed) {
     default: return 0;
 
     // clang-format on
-  }
-};
+  };
+}
 
 UxnControllerButton convert_raylib_button(KeyboardKey key) {
   switch (key) {
@@ -170,7 +171,6 @@ void handle_keyboard(Uxn *uxn) {
 
   KeyboardKey key = 0;
   while ((key = GetKeyPressed())) {
-    // console_input_event(uxn, key, CONSOLE_TYPE_STDIN);
     bool shift_pressed =
         IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
     controller_key_down(uxn, convert_raylib_to_ascii(key, shift_pressed));
@@ -190,6 +190,9 @@ Byte Uxn_dei_dispatch(Uxn *uxn, Byte addr) {
     return system_dei(uxn, addr);
   case 0x20:
     return screen_dei(uxn, addr);
+  case 0xa0:
+  case 0xb0:
+    return file_dei(uxn, addr);
   case 0xc0:
     return datetime_dei(uxn, addr);
   default:
@@ -212,6 +215,10 @@ void Uxn_deo_dispatch(Uxn *uxn, Byte addr) {
     break;
   case 0x20:
     screen_deo(uxn, addr);
+    break;
+  case 0xa0:
+  case 0xb0:
+    file_deo(uxn, addr);
     break;
   default:
     break;

@@ -110,6 +110,9 @@ void Uxn_dev_zero(Uxn *uxn);
 
 void *Uxn_get_screen(T *uxn);
 
+void *Uxn_get_open_files(T *uxn);
+void Uxn_set_open_files(T *uxn, void *files);
+
 /**
  * Evaluates the instruction at the given program counter.
  *

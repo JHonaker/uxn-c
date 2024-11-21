@@ -27,6 +27,7 @@ struct Uxn {
   Stack *work;
   Stack *ret;
   void *screen;
+  void *open_files;
 };
 
 void Uxn_init(Uxn *uxn, void *screen) {
@@ -35,7 +36,8 @@ void Uxn_init(Uxn *uxn, void *screen) {
                  .dev = {0},
                  .work = Stack_new(),
                  .ret = Stack_new(),
-                 .screen = screen};
+                 .screen = screen,
+                 .open_files = NULL};
   }
 }
 
@@ -53,6 +55,9 @@ void Uxn_destroy(Uxn *uxn) {
 }
 
 void *Uxn_get_screen(Uxn *uxn) { return uxn->screen; }
+
+void *Uxn_get_open_files(Uxn *uxn) { return uxn->open_files; }
+void Uxn_set_open_files(Uxn *uxn, void *files) { uxn->open_files = files; }
 
 Uxn *Uxn_new(void *screen) {
   Uxn *uxn = malloc(sizeof(Uxn));
