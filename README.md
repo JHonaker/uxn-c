@@ -144,19 +144,19 @@ https://www.raylib.com/index.html
 | --- | --- | --- | 
 | a0 | vector* |  |
 | a1 |  |  |
-| a2 | success* |  |
+| a2 | success* | Done |
 | a3 |  |  |
-| a4 | stat* |  |
+| a4 | stat* | Done |
 | a5 |  |  |
-| a6 | delete |  |
-| a7 | append |  |
-| a8 | name* |  |
+| a6 | delete | Done |
+| a7 | append | Done |
+| a8 | name* | Done |
 | a9 |  |  |
-| aa | length* |  |
+| aa | length* | Done |
 | ab |  |  |
-| ac | read* |  |
+| ac | read* | Done |
 | ad |  |  |
-| ae | write* |  |
+| ae | write* | Done |
 | af |  |  |
 
 ### Datetime Device

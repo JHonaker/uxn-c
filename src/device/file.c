@@ -51,6 +51,25 @@ union UxnStream {
 int stream_init(union UxnStream *stream, char *name);
 void stream_close(union UxnStream *stream);
 
+char *read_filename(Uxn *uxn, Short addr) {
+  char *name = calloc(MAX_FILE_NAME_LENGTH + 1, sizeof(Byte));
+  Short bytes_to_read = MAX_FILE_NAME_LENGTH;
+
+  ENSURE_BUFFER_BOUNDS(addr, bytes_to_read);
+
+  Uxn_mem_buffer_read(uxn, bytes_to_read, (Byte *)name, addr);
+  name[bytes_to_read] = '\0';
+
+  size_t name_len = strlen((char *)name);
+  char *new_buf = realloc(name, (name_len + 1) * sizeof(char));
+
+  if (new_buf) {
+    name = new_buf;
+  }
+
+  return name;
+}
+
 void file_init(struct UxnFile *file, char *filename) {
   *file = (struct UxnFile){
       .fp = NULL, .name = filename, .type = UXN_FILE_TYPE, .state = STATE_INIT};
@@ -199,10 +218,11 @@ void file_stat_error(char *buffer, Short buffer_len) {
   }
 }
 
-void file_stat(struct UxnFile *file, Short buffer_len, char *buffer) {
+void file_stat(char *name, Short buffer_len, char *buffer,
+               bool clip_large_size) {
   struct stat st;
 
-  int err = stat(file->name, &st);
+  int err = stat(name, &st);
 
   if (err) {
     file_stat_error(buffer, buffer_len);
@@ -210,6 +230,13 @@ void file_stat(struct UxnFile *file, Short buffer_len, char *buffer) {
   }
 
   size_t size = st.st_size;
+
+  if (clip_large_size && size > 0xffff) {
+    for (size_t i = 0; i < buffer_len; i++)
+      buffer[i] = '?';
+    return;
+  }
+
   const char digit_chars[16] = "0123456789abcdef";
   for (size_t i = 0; i < buffer_len; i++) {
     Byte digit = size & 0xf;
@@ -226,7 +253,7 @@ void file_stat_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
   ENSURE_BUFFER_BOUNDS(buffer_addr, buffer_len);
 
   char *stat_buffer = calloc(buffer_len, sizeof(char));
-  file_stat(file, buffer_len, stat_buffer);
+  file_stat(file->name, buffer_len, stat_buffer, false);
 
   Uxn_mem_load(uxn, (Byte *)stat_buffer, buffer_len, buffer_addr);
 
@@ -258,30 +285,135 @@ int dir_close(struct UxnDir *dir) {
     dir->name = NULL;
   }
 
-  dir->state = STATE_CLOSED;
-
   return 1;
 }
 
-void dir_name_port_deo(Uxn *uxn, struct UxnDir *dir, Byte page) {
-  Short name_addr = Uxn_dev_read_short(uxn, page | FILE_NAME_PORT);
-  Byte buffer[MAX_FILE_NAME_LENGTH] = {0};
-  Short bytes_to_read = MAX_FILE_NAME_LENGTH;
+int dir_reopen(struct UxnDir *dir) {
+  closedir(dir->dp);
+  dir->dp = NULL;
+  return dir_open(dir);
+}
 
-  ENSURE_BUFFER_BOUNDS(name_addr, bytes_to_read);
+Short read_directory_entry(char *dirname, size_t max_size,
+                           char buffer[max_size + 1]) {
+  if (strcmp(dirname, ".") == 0 || strcmp(dirname, "..") == 0) {
+    return 0;
+  }
 
-  Uxn_mem_buffer_read(uxn, bytes_to_read, buffer, name_addr);
-  buffer[bytes_to_read - 1] = '\0';
+  const int prefix_length = 4;
+  const size_t name_len = strlen(dirname);
+  if (max_size < prefix_length + name_len + 2)
+    return 0;
 
-  size_t name_len = strlen((char *)buffer);
-  char *name = calloc(name_len + 1, sizeof(char));
-  strcpy(name, (char *)buffer);
+  char *p = stpcpy(buffer, "---- ");
+  p = stpcpy(p, dirname);
+  p = stpcpy(p, "\n");
 
-  dir_init(dir, name);
+  return p - buffer;
+}
+
+Short read_file_entry(char *path, char *filename, size_t max_size,
+                      char buffer[max_size + 1]) {
+
+  const int prefix_length = 4;
+  const size_t name_len = strlen(filename);
+  if (max_size < prefix_length + name_len + 2)
+    return 0;
+
+  const size_t path_len = strlen(path);
+  char *full_path = malloc(path_len + name_len + 2);
+  char *p = stpcpy(full_path, path);
+  p = stpcpy(p, "/");
+  p = stpcpy(p, filename);
+  file_stat(full_path, prefix_length, buffer, true);
+  free(full_path);
+
+  p = stpcpy(buffer + 4, " ");
+  p = stpcpy(p, filename);
+  p = stpcpy(p, "\n");
+
+  return p - buffer;
+}
+
+void dir_read(Uxn *uxn, struct UxnDir *dir, Byte page) {
+
+  Short write_addr = Uxn_dev_read_short(uxn, page | FILE_READ_PORT);
+  Short max_written = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
+  ENSURE_BUFFER_BOUNDS(write_addr, max_written);
+
+  if (!dir->dp) {
+    Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
+    return;
+  }
+
+  struct dirent *ep = {0};
+
+  Short total_bytes_written = 0;
+
+  char buffer[MAX_FILE_NAME_LENGTH + 1] = {0};
+
+  while ((ep = readdir(dir->dp)) && total_bytes_written < max_written) {
+    Short bytes_read = 0;
+
+    const size_t buffer_len =
+        (max_written - total_bytes_written) < MAX_FILE_NAME_LENGTH
+            ? max_written - total_bytes_written
+            : MAX_FILE_NAME_LENGTH;
+    switch (ep->d_type) {
+    case DT_DIR:
+      bytes_read = read_directory_entry(ep->d_name, buffer_len, buffer);
+      break;
+    case DT_REG:
+      bytes_read = read_file_entry(dir->name, ep->d_name, buffer_len, buffer);
+      break;
+    default:
+      continue;
+    }
+
+    Uxn_mem_load(uxn, (Byte *)buffer, bytes_read,
+                 write_addr + total_bytes_written);
+    total_bytes_written += bytes_read;
+  }
+
+  Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, total_bytes_written);
+
+  // while ((ep = readdir(dir->dp))) {
+  //   ENSURE_BUFFER_BOUNDS(write_addr, write_len);
+
+  //   Uxn_mem_load(uxn, (Byte *)ep->d_name, write_len, write_addr);
+  //   Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, write_len);
+  //   return;
+  // }
+
+  // Byte buffer[FILE_BUFFER_SIZE] = {0};
+  // Short bytes_to_read = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
+  // Short bytes_read = diread(buffer, 1, bytes_to_read, dir->dp);
+
+  // if (!bytes_read) {
+  //   Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
+  //   return;
+  // }
+
+  // Short write_addr = Uxn_dev_read_short(uxn, page | FILE_READ_PORT);
+  // ENSURE_BUFFER_BOUNDS(write_addr, bytes_read);
+
+  // Uxn_mem_load(uxn, buffer, bytes_read, write_addr);
+  // Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, bytes_read);
 }
 
 void dir_read_port_deo(Uxn *uxn, struct UxnDir *dir, Byte page) {
-  
+  switch (dir->state) {
+  case STATE_INIT:
+    if (dir_open(dir))
+      dir_read(uxn, dir, page);
+    break;
+  case STATE_READ:
+    dir_read(uxn, dir, page);
+    break;
+  default:
+    Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
+    break;
+  }
 }
 
 void dir_stat_port_deo(Uxn *uxn, struct UxnDir *dir, Byte page) {
@@ -333,22 +465,9 @@ void stream_close(union UxnStream *stream) {
 }
 
 void file_name_port_deo(Uxn *uxn, union UxnStream *stream, Byte page) {
-
   stream_close(stream);
-
   Short name_addr = Uxn_dev_read_short(uxn, page | FILE_NAME_PORT);
-  Byte buffer[MAX_FILE_NAME_LENGTH] = {0};
-  Short bytes_to_read = MAX_FILE_NAME_LENGTH;
-
-  ENSURE_BUFFER_BOUNDS(name_addr, bytes_to_read);
-
-  Uxn_mem_buffer_read(uxn, bytes_to_read, buffer, name_addr);
-  buffer[bytes_to_read - 1] = '\0';
-
-  size_t name_len = strlen((char *)buffer);
-  char *name = calloc(name_len + 1, sizeof(char));
-  strcpy(name, (char *)buffer);
-
+  char *name = read_filename(uxn, name_addr);
   stream_init(stream, name);
 }
 
