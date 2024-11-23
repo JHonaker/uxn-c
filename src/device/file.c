@@ -41,6 +41,8 @@ struct UxnDir {
   char *name;
   UxnFileState state;
   DIR *dp;
+  char *content;
+  size_t read_offset;
 };
 
 union UxnStream {
@@ -264,7 +266,11 @@ void file_stat_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
 // Directory
 
 void dir_init(struct UxnDir *dir, char *dirname) {
-  *dir = (struct UxnDir){.dp = NULL, .name = dirname, .type = UXN_DIR_TYPE};
+  *dir = (struct UxnDir){.dp = NULL,
+                         .name = dirname,
+                         .type = UXN_DIR_TYPE,
+                         .content = NULL,
+                         .read_offset = 0};
 }
 
 int dir_open(struct UxnDir *dir) {
@@ -285,12 +291,18 @@ int dir_close(struct UxnDir *dir) {
     dir->name = NULL;
   }
 
+  if (dir->content) {
+    free(dir->content);
+  }
+
   return 1;
 }
 
 int dir_reopen(struct UxnDir *dir) {
   closedir(dir->dp);
   dir->dp = NULL;
+  free(dir->content);
+  dir->read_offset = 0;
   return dir_open(dir);
 }
 
@@ -335,70 +347,99 @@ Short read_file_entry(char *path, char *filename, size_t max_size,
   return p - buffer;
 }
 
-void dir_read(Uxn *uxn, struct UxnDir *dir, Byte page) {
-
+void dir_read_continue(Uxn *uxn, struct UxnDir *dir, Byte page) {
   Short write_addr = Uxn_dev_read_short(uxn, page | FILE_READ_PORT);
-  Short max_written = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
-  ENSURE_BUFFER_BOUNDS(write_addr, max_written);
+  Short write_len = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
+
+  ENSURE_BUFFER_BOUNDS(write_addr, write_len);
+
+  size_t content_length = strlen(dir->content);
+  if (dir->read_offset + write_len >= content_length) {
+    write_len = content_length - dir->read_offset;
+  }
+
+  if (write_len == 0) {
+    Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
+    return;
+  }
+
+  Uxn_mem_load(uxn, (Byte *)dir->content + dir->read_offset, write_len,
+               write_addr);
+
+  dir->read_offset += write_len;
+  Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, write_len);
+}
+
+void dir_read(Uxn *uxn, struct UxnDir *dir, Byte page) {
 
   if (!dir->dp) {
     Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
     return;
   }
 
+  if (dir->content) {
+    dir_read_continue(uxn, dir, page);
+    return;
+  }
+
   struct dirent *ep = {0};
 
-  Short total_bytes_written = 0;
-
+  size_t content_length = 0;
+  size_t line_count = 0;
+  size_t line_count_buffer_size = 5;
+  char **lines = calloc(line_count_buffer_size, sizeof(*lines));
   char buffer[MAX_FILE_NAME_LENGTH + 1] = {0};
 
-  while ((ep = readdir(dir->dp)) && total_bytes_written < max_written) {
-    Short bytes_read = 0;
+  while ((ep = readdir(dir->dp))) {
+    if (line_count + 1 >= line_count_buffer_size) {
+      line_count_buffer_size *= 2;
+      char **new_buf = realloc(lines, line_count_buffer_size * sizeof(*lines));
+      if (new_buf) {
+        lines = new_buf;
+      } else {
+        printf("Could not allocate enough memory to read directory %s.",
+               dir->name);
+        exit(EXIT_FAILURE);
+      }
+    }
 
-    const size_t buffer_len =
-        (max_written - total_bytes_written) < MAX_FILE_NAME_LENGTH
-            ? max_written - total_bytes_written
-            : MAX_FILE_NAME_LENGTH;
+    memset(buffer, 0, MAX_FILE_NAME_LENGTH + 1);
+
     switch (ep->d_type) {
     case DT_DIR:
-      bytes_read = read_directory_entry(ep->d_name, buffer_len, buffer);
+      read_directory_entry(ep->d_name, MAX_FILE_NAME_LENGTH, buffer);
       break;
     case DT_REG:
-      bytes_read = read_file_entry(dir->name, ep->d_name, buffer_len, buffer);
+      read_file_entry(dir->name, ep->d_name, MAX_FILE_NAME_LENGTH, buffer);
       break;
     default:
       continue;
     }
 
-    Uxn_mem_load(uxn, (Byte *)buffer, bytes_read,
-                 write_addr + total_bytes_written);
-    total_bytes_written += bytes_read;
+    size_t line_length = strlen(buffer);
+    content_length += line_length;
+    lines[line_count] = malloc((line_length + 1) * sizeof(char));
+    strcpy(lines[line_count], buffer);
+
+    line_count++;
   }
 
-  Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, total_bytes_written);
+  char *content = calloc(content_length + 1, sizeof(char));
+  char *p = content;
 
-  // while ((ep = readdir(dir->dp))) {
-  //   ENSURE_BUFFER_BOUNDS(write_addr, write_len);
+  for (size_t i = 0; i < line_count; i++) {
+    p = stpcpy(p, lines[i]);
+  }
 
-  //   Uxn_mem_load(uxn, (Byte *)ep->d_name, write_len, write_addr);
-  //   Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, write_len);
-  //   return;
-  // }
+  dir->content = content;
+  dir->read_offset = 0;
 
-  // Byte buffer[FILE_BUFFER_SIZE] = {0};
-  // Short bytes_to_read = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
-  // Short bytes_read = diread(buffer, 1, bytes_to_read, dir->dp);
+  for (size_t i = 0; i < line_count; i++)
+    free(lines[i]);
 
-  // if (!bytes_read) {
-  //   Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
-  //   return;
-  // }
+  free(lines);
 
-  // Short write_addr = Uxn_dev_read_short(uxn, page | FILE_READ_PORT);
-  // ENSURE_BUFFER_BOUNDS(write_addr, bytes_read);
-
-  // Uxn_mem_load(uxn, buffer, bytes_read, write_addr);
-  // Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, bytes_read);
+  dir_read_continue(uxn, dir, page);
 }
 
 void dir_read_port_deo(Uxn *uxn, struct UxnDir *dir, Byte page) {
