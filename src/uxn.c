@@ -1272,6 +1272,8 @@ Short op_sft(Uxn *uxn, Short pc, bool keep_mode, bool return_mode,
 
 bool Uxn_eval(Uxn *uxn, Short pc) {
 
+  if (!pc) return 1;
+
   bool continue_execution = true;
 
   while (continue_execution) {
