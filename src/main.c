@@ -262,6 +262,16 @@ int main(int argc, char *argv[]) {
 
   Uxn_eval(uxn, RESET_VECTOR);
 
+  for (int i = optind + 1; i < argc; i++) {
+    char *p = argv[i];
+    while (*p) {
+      console_input_event(uxn, *p++, CONSOLE_TYPE_ARG);
+    }
+    console_input_event(uxn, '\n',
+                        i == argc - 1 ? CONSOLE_TYPE_ARG_END
+                                      : CONSOLE_TYPE_ARG_SPACER);
+  }
+
   while (continue_execution) {
     screen_update(uxn);
 
