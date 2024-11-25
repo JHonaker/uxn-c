@@ -186,14 +186,14 @@ void handle_input(Uxn *uxn, int scale_factor) {
 Byte Uxn_dei_dispatch(Uxn *uxn, Byte addr) {
   const Byte page = addr & 0xf0;
   switch (page) {
-  case 0x00:
+  case DEVICE_PAGE_SYSTEM:
     return system_dei(uxn, addr);
-  case 0x20:
+  case DEVICE_PAGE_SCREEN:
     return screen_dei(uxn, addr);
-  case 0xa0:
-  case 0xb0:
+  case DEVICE_PAGE_FILE1:
+  case DEVICE_PAGE_FILE2:
     return file_dei(uxn, addr);
-  case 0xc0:
+  case DEVICE_PAGE_DATETIME:
     return datetime_dei(uxn, addr);
   default:
     return Uxn_dev_read(uxn, addr);
@@ -203,21 +203,21 @@ Byte Uxn_dei_dispatch(Uxn *uxn, Byte addr) {
 void Uxn_deo_dispatch(Uxn *uxn, Byte addr) {
   const Byte page = addr & 0xf0;
   switch (page) {
-  case 0x00: {
+  case DEVICE_PAGE_SYSTEM: {
     system_deo(uxn, addr);
     if (SYSTEM_RED_PORT <= addr && addr <= SYSTEM_BLUE_PORT + 1) {
       screen_change_palette(uxn);
     }
     break;
   }
-  case 0x10:
+  case DEVICE_PAGE_CONSOLE:
     console_deo(uxn, addr);
     break;
-  case 0x20:
+  case DEVICE_PAGE_SCREEN:
     screen_deo(uxn, addr);
     break;
-  case 0xa0:
-  case 0xb0:
+  case DEVICE_PAGE_FILE1:
+  case DEVICE_PAGE_FILE2:
     file_deo(uxn, addr);
     break;
   default:

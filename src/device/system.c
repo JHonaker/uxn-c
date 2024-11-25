@@ -129,10 +129,10 @@ void system_deo(Uxn *uxn, Byte addr) {
     system_expansion(uxn);
     break;
   case SYSTEM_WST_PORT:
-    Uxn_set_work_ptr(uxn, Uxn_dev_read(uxn, 0x04));
+    Uxn_set_work_ptr(uxn, Uxn_dev_read(uxn, SYSTEM_WST_PORT));
     break;
   case SYSTEM_RST_PORT:
-    Uxn_set_ret_ptr(uxn, Uxn_dev_read(uxn, 0x05));
+    Uxn_set_ret_ptr(uxn, Uxn_dev_read(uxn, SYSTEM_RST_PORT));
     break;
   case SYSTEM_DEBUG_PORT:
     system_inspect(uxn);
