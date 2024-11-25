@@ -113,8 +113,10 @@ void file_close(struct UxnFile *file) {
 }
 
 int file_reopen(struct UxnFile *file, UxnFileState state) {
-  fclose(file->fp);
-  file->fp = NULL;
+  if (file->fp) {
+    fclose(file->fp);
+    file->fp = NULL;
+  }
   return file_open(file, state);
 }
 
@@ -126,11 +128,18 @@ void file_read(Uxn *uxn, struct UxnFile *file, Byte page) {
 
   Byte buffer[FILE_BUFFER_SIZE] = {0};
   Short bytes_to_read = Uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
+  bytes_to_read =
+      (bytes_to_read > FILE_BUFFER_SIZE) ? FILE_BUFFER_SIZE : bytes_to_read;
   Short bytes_read = fread(buffer, 1, bytes_to_read, file->fp);
 
   if (!bytes_read) {
     Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
     return;
+  }
+  
+  if (bytes_read < bytes_to_read) {
+    int diff = bytes_read - bytes_to_read;
+    fseeko(file->fp, diff, SEEK_CUR);
   }
 
   Short write_addr = Uxn_dev_read_short(uxn, page | FILE_READ_PORT);
@@ -154,6 +163,7 @@ void file_write(Uxn *uxn, struct UxnFile *file, Byte page) {
 
   Uxn_mem_buffer_read(uxn, bytes_to_write, buffer, mem_addr);
   Short bytes_written = fwrite(buffer, 1, bytes_to_write, file->fp);
+  fflush(file->fp);
 
   Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, bytes_written);
 }
@@ -161,19 +171,25 @@ void file_write(Uxn *uxn, struct UxnFile *file, Byte page) {
 void file_read_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
   switch (file->state) {
   case STATE_INIT:
-    if (file_open(file, STATE_READ))
+    if (file_open(file, STATE_READ)) {
+      file->state = STATE_READ;
       file_read(uxn, file, page);
+    }
     break;
   case STATE_READ:
     file_read(uxn, file, page);
     break;
   case STATE_WRITE:
-    if (file_reopen(file, STATE_READ))
+    if (file_reopen(file, STATE_READ)) {
+      file->state = STATE_READ;
       file_read(uxn, file, page);
+    }
     break;
   case STATE_APPEND:
-    if (file_reopen(file, STATE_READ))
+    if (file_reopen(file, STATE_READ)) {
+      file->state = STATE_READ;
       file_read(uxn, file, page);
+    }
     break;
   default:
     Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
@@ -187,18 +203,24 @@ void file_write_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
 
   switch (file->state) {
   case STATE_INIT:
-    if (file_open(file, state))
+    if (file_open(file, state)) {
+      file->state = state;
       file_write(uxn, file, page);
+    }
     break;
   case STATE_READ:
-    if (file_reopen(file, state))
+    if (file_reopen(file, state)) {
+      file->state = state;
       file_write(uxn, file, page);
+    }
     break;
   case STATE_WRITE:
   case STATE_APPEND:
     if (file->state != state) {
-      if (file_reopen(file, state))
+      if (file_reopen(file, state)) {
+        file->state = state;
         file_write(uxn, file, page);
+      }
     } else {
       file_write(uxn, file, page);
     }
@@ -293,16 +315,23 @@ int dir_close(struct UxnDir *dir) {
 
   if (dir->content) {
     free(dir->content);
+    dir->content = NULL;
   }
 
   return 1;
 }
 
 int dir_reopen(struct UxnDir *dir) {
-  closedir(dir->dp);
-  dir->dp = NULL;
-  free(dir->content);
-  dir->read_offset = 0;
+  if (dir->dp) {
+    closedir(dir->dp);
+    dir->dp = NULL;
+  }
+
+  if (dir->content) {
+    free(dir->content);
+    dir->content = NULL;
+  }
+
   return dir_open(dir);
 }
 
@@ -370,6 +399,10 @@ void dir_read_continue(Uxn *uxn, struct UxnDir *dir, Byte page) {
   Uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, write_len);
 }
 
+int filter_dot_directories(const struct dirent *ep) {
+  return !(strcmp(ep->d_name, ".") == 0 || strcmp(ep->d_name, "..") == 0);
+}
+
 void dir_read(Uxn *uxn, struct UxnDir *dir, Byte page) {
 
   if (!dir->dp) {
@@ -382,60 +415,53 @@ void dir_read(Uxn *uxn, struct UxnDir *dir, Byte page) {
     return;
   }
 
-  struct dirent *ep = {0};
+  struct dirent **entries = NULL;
+  int num_entries =
+      scandir(dir->name, &entries, filter_dot_directories, alphasort);
 
-  size_t content_length = 0;
-  size_t line_count = 0;
-  size_t line_count_buffer_size = 5;
-  char **lines = calloc(line_count_buffer_size, sizeof(*lines));
+  if (num_entries == -1) {
+    perror("Error reading directory:");
+    exit(EXIT_FAILURE);
+  }
+
+  int content_length = 0;
+  char **lines = calloc(num_entries, sizeof(*lines));
   char buffer[MAX_FILE_NAME_LENGTH + 1] = {0};
-
-  while ((ep = readdir(dir->dp))) {
-    if (line_count + 1 >= line_count_buffer_size) {
-      line_count_buffer_size *= 2;
-      char **new_buf = realloc(lines, line_count_buffer_size * sizeof(*lines));
-      if (new_buf) {
-        lines = new_buf;
-      } else {
-        printf("Could not allocate enough memory to read directory %s.",
-               dir->name);
-        exit(EXIT_FAILURE);
-      }
-    }
-
+  for (int i = 0; i < num_entries; i++) {
     memset(buffer, 0, MAX_FILE_NAME_LENGTH + 1);
 
-    switch (ep->d_type) {
+    switch (entries[i]->d_type) {
     case DT_DIR:
-      read_directory_entry(ep->d_name, MAX_FILE_NAME_LENGTH, buffer);
+      read_directory_entry(entries[i]->d_name, MAX_FILE_NAME_LENGTH, buffer);
       break;
     case DT_REG:
-      read_file_entry(dir->name, ep->d_name, MAX_FILE_NAME_LENGTH, buffer);
+      read_file_entry(dir->name, entries[i]->d_name, MAX_FILE_NAME_LENGTH,
+                      buffer);
       break;
     default:
       continue;
     }
 
-    size_t line_length = strlen(buffer);
+    int line_length = strlen(buffer);
     content_length += line_length;
-    lines[line_count] = malloc((line_length + 1) * sizeof(char));
-    strcpy(lines[line_count], buffer);
-
-    line_count++;
+    lines[i] = calloc(line_length + 1, sizeof(char));
+    strcpy(lines[i], buffer);
   }
 
   char *content = calloc(content_length + 1, sizeof(char));
   char *p = content;
 
-  for (size_t i = 0; i < line_count; i++) {
+  for (int i = 0; i < num_entries; i++) {
     p = stpcpy(p, lines[i]);
   }
 
   dir->content = content;
   dir->read_offset = 0;
 
-  for (size_t i = 0; i < line_count; i++)
+  for (int i = 0; i < num_entries; i++) {
     free(lines[i]);
+    free(entries[i]);
+  }
 
   free(lines);
 
@@ -445,8 +471,10 @@ void dir_read(Uxn *uxn, struct UxnDir *dir, Byte page) {
 void dir_read_port_deo(Uxn *uxn, struct UxnDir *dir, Byte page) {
   switch (dir->state) {
   case STATE_INIT:
-    if (dir_open(dir))
+    if (dir_open(dir)) {
+      dir->state = STATE_READ;
       dir_read(uxn, dir, page);
+    }
     break;
   case STATE_READ:
     dir_read(uxn, dir, page);
@@ -478,7 +506,9 @@ int stream_init(union UxnStream *stream, char *name) {
   int err = stat(name, &st);
 
   if (err) {
-    return 0;
+    // File doesn't exist, so create it.
+    file_init(&stream->file, name);
+    return 1;
   }
 
   if (S_ISDIR(st.st_mode)) {
