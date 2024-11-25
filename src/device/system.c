@@ -7,23 +7,23 @@
 #include <stdio.h>
 
 // System expansion operations
-static void system_expansion_fill(Uxn *uxn) {
-  Short length = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 1);
-  Short bank = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 3);
-  Short addr = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 5);
-  Byte value = Uxn_mem_read(uxn, SYSTEM_EXPANSION_PORT + 7);
+static void system_expansion_fill(Uxn *uxn, Short op_addr) {
+  Short length = Uxn_mem_read_short(uxn, op_addr + 1);
+  Short bank = Uxn_mem_read_short(uxn, op_addr + 3);
+  Short addr = Uxn_mem_read_short(uxn, op_addr + 5);
+  Byte value = Uxn_mem_read(uxn, op_addr + 7);
 
   for (int i = 0; i < length; i++) {
     Uxn_page_write(uxn, bank, addr + i, value);
   }
 }
 
-static void system_expansion_copy_left(Uxn *uxn) {
-  Short length = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 1);
-  Short src_bank = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 3);
-  Short src_addr = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 5);
-  Short dst_bank = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 7);
-  Short dst_addr = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 9);
+static void system_expansion_copy_left(Uxn *uxn, Short op_addr) {
+  Short length = Uxn_mem_read_short(uxn, op_addr + 1);
+  Short src_bank = Uxn_mem_read_short(uxn, op_addr + 3);
+  Short src_addr = Uxn_mem_read_short(uxn, op_addr + 5);
+  Short dst_bank = Uxn_mem_read_short(uxn, op_addr + 7);
+  Short dst_addr = Uxn_mem_read_short(uxn, op_addr + 9);
 
   for (int i = 0; i < length; i++) {
     Byte src = Uxn_page_read(uxn, src_bank, src_addr + i);
@@ -31,12 +31,12 @@ static void system_expansion_copy_left(Uxn *uxn) {
   }
 }
 
-static void system_expansion_copy_right(Uxn *uxn) {
-  Short length = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 1);
-  Short src_bank = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 3);
-  Short src_addr = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 5);
-  Short dst_bank = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 7);
-  Short dst_addr = Uxn_mem_read_short(uxn, SYSTEM_EXPANSION_PORT + 9);
+static void system_expansion_copy_right(Uxn *uxn, Short op_addr) {
+  Short length = Uxn_mem_read_short(uxn, op_addr + 1);
+  Short src_bank = Uxn_mem_read_short(uxn, op_addr + 3);
+  Short src_addr = Uxn_mem_read_short(uxn, op_addr + 5);
+  Short dst_bank = Uxn_mem_read_short(uxn, op_addr + 7);
+  Short dst_addr = Uxn_mem_read_short(uxn, op_addr + 9);
 
   for (int i = length - 1; i >= 0; i--) {
     Byte src = Uxn_page_read(uxn, src_bank, src_addr + i);
@@ -45,17 +45,18 @@ static void system_expansion_copy_right(Uxn *uxn) {
 }
 
 static void system_expansion(Uxn *uxn) {
-  Byte operation = Uxn_dev_read(uxn, SYSTEM_EXPANSION_PORT);
+  Short op_addr = Uxn_dev_read_short(uxn, SYSTEM_EXPANSION_PORT);
+  Byte operation = Uxn_mem_read(uxn, op_addr);
 
   switch (operation) {
   case FILL:
-    system_expansion_fill(uxn);
+    system_expansion_fill(uxn, op_addr);
     break;
   case CPYL:
-    system_expansion_copy_left(uxn);
+    system_expansion_copy_left(uxn, op_addr);
     break;
   case CPYR:
-    system_expansion_copy_right(uxn);
+    system_expansion_copy_right(uxn, op_addr);
     break;
   }
 }
@@ -112,9 +113,9 @@ int system_boot(Uxn *uxn, char *rom_path) {
 Byte system_dei(Uxn *uxn, Byte addr) {
 
   switch (addr) {
-  case 0x04:
+  case SYSTEM_WST_PORT:
     return Uxn_work_ptr(uxn);
-  case 0x05:
+  case SYSTEM_RST_PORT:
     return Uxn_ret_ptr(uxn);
   default:
     return Uxn_dev_read(uxn, addr);
