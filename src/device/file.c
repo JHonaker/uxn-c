@@ -500,6 +500,29 @@ void dir_stat_port_deo(Uxn *uxn, struct UxnDir *dir, Byte page) {
 
 // Stream
 
+void ensure_parent_directory_exists(char *pathname) {
+  const size_t len = strlen(pathname);
+  char strbuf[len + 1];
+  strbuf[len] = '\0';
+  
+  const char *last_slash = strrchr(pathname, '/');
+  char *p = pathname;
+  while (p && p < last_slash) {
+    p = strchr(p + 1, '/');
+    if (p) {
+      strncpy(strbuf, pathname, p - pathname);
+      strbuf[p - pathname] = '\0';
+      if (stat(strbuf, &(struct stat){0}) == -1) {
+        if (mkdir(strbuf, 0777) == -1) {
+          perror("mkdir");
+          exit(EXIT_FAILURE);
+        }
+      }
+
+    }
+  }
+}
+
 int stream_init(union UxnStream *stream, char *name) {
   struct stat st;
 
@@ -507,6 +530,7 @@ int stream_init(union UxnStream *stream, char *name) {
 
   if (err) {
     // File doesn't exist, so create it.
+    ensure_parent_directory_exists(name);
     file_init(&stream->file, name);
     return 1;
   }
