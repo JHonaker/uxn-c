@@ -151,8 +151,8 @@ void screen_boot(Uxn *uxn) {
 }
 
 void screen_pixel_port(Uxn *uxn, T *screen) {
-  Short x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
-  Short y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
+  int x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
+  int y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
 
   Byte control = Uxn_dev_read(uxn, SCREEN_PIXEL_PORT);
 
@@ -180,8 +180,8 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
 
   if (fill_mode) {
 
-    Byte rect_x = flip_x ? 0 : x;
-    Byte rect_y = flip_y ? 0 : y;
+    int rect_x = flip_x ? 0 : x;
+    int rect_y = flip_y ? 0 : y;
     int rect_width = flip_x ? x : screen->width - x;
     int rect_height = flip_y ? y : screen->height - y;
 
