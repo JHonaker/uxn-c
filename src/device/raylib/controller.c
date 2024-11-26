@@ -2,8 +2,9 @@
 #include "../controller.h"
 #include <raylib.h>
 
-int convert_raylib_to_ascii(KeyboardKey key, bool shift_pressed) {
 #define KDEF(k, shifted_k) (!shift_pressed ? k : shifted_k)
+
+int convert_raylib_to_ascii(KeyboardKey key, bool shift_pressed) {
 
   // clang-format off
 
@@ -60,12 +61,12 @@ int convert_raylib_to_ascii(KeyboardKey key, bool shift_pressed) {
     case KEY_PERIOD: return KDEF('.', '>');
     case KEY_SLASH: return KDEF('/', '?');
     case KEY_SPACE: return ' ';
-    case KEY_INSERT: return 0x1b;
-    case KEY_HOME: return 0x01;
-    case KEY_PAGE_UP: return 0x02;
-    case KEY_DELETE: return 0x7f;
-    case KEY_END: return 0x05;
-    case KEY_PAGE_DOWN: return 0x06;
+    case KEY_INSERT: return 0x2d;
+    case KEY_HOME: return 0x24;
+    case KEY_PAGE_UP: return 0x26;
+    case KEY_DELETE: return 0x2e;
+    case KEY_END: return 0x23;
+    case KEY_PAGE_DOWN: return 0x28;
     case KEY_KP_0: return '0';
     case KEY_KP_1: return '1';
     case KEY_KP_2: return '2';
