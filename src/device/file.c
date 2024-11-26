@@ -343,12 +343,12 @@ Short read_directory_entry(char *dirname, size_t max_size,
 
   const int prefix_length = 4;
   const size_t name_len = strlen(dirname);
-  if (max_size < prefix_length + name_len + 2)
+  if (max_size < prefix_length + name_len + 3)
     return 0;
 
   char *p = stpcpy(buffer, "---- ");
   p = stpcpy(p, dirname);
-  p = stpcpy(p, "\n");
+  p = stpcpy(p, "/\n");
 
   return p - buffer;
 }
