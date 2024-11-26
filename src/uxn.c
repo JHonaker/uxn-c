@@ -155,23 +155,23 @@ void uxn_mem_load(Uxn *uxn, Byte program[], unsigned long size, size_t addr) {
   uxn_page_load(uxn, program, size, 0, addr);
 }
 
-Byte uxn_mem_read(Uxn *uxn, size_t addr) { return uxn->ram[PAGE_ADDR(0, addr)]; }
+Byte uxn_mem_read(Uxn *uxn, size_t addr) { return uxn->ram[PAGE_ADDR(0, addr) & (RAM_PAGE_SIZE - 1)]; }
 
 void uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[size], size_t addr) {
   memcpy(buffer, &uxn->ram[addr], size);
 }
 
 Short uxn_mem_read_short(Uxn *uxn, size_t addr) {
-  return (uxn->ram[PAGE_ADDR(0, addr)] << 8) | uxn->ram[PAGE_ADDR(0, addr + 1)];
+  return (uxn->ram[PAGE_ADDR(0, addr) & (RAM_PAGE_SIZE - 1)] << 8) | uxn->ram[PAGE_ADDR(0, addr + 1) & (RAM_PAGE_SIZE - 1)];
 }
 
 void uxn_mem_write(Uxn *uxn, size_t addr, Byte value) {
-  uxn->ram[PAGE_ADDR(0, addr)] = value;
+  uxn->ram[PAGE_ADDR(0, addr) & (RAM_PAGE_SIZE - 1)] = value;
 }
 
 void uxn_mem_write_short(Uxn *uxn, size_t addr, Short value) {
-  uxn->ram[PAGE_ADDR(0, addr)] = value >> 8;
-  uxn->ram[PAGE_ADDR(0, addr + 1)] = value & 0xff;
+  uxn->ram[PAGE_ADDR(0, addr) & (RAM_PAGE_SIZE - 1)] = value >> 8;
+  uxn->ram[PAGE_ADDR(0, addr + 1) & (RAM_PAGE_SIZE - 1)] = value & 0xff;
 }
 
 Byte uxn_zero_page_read(Uxn *uxn, Byte addr) {
