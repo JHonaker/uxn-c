@@ -1,6 +1,9 @@
 #include "../common.h"
 #include "../uxn.h"
 
+#ifndef file_h
+#define file_h
+
 #define FILE_A_PAGE 0xa0
 #define FILE_B_PAGE 0xb0
 #define FILE_VECTOR_PORT 0x00
@@ -15,3 +18,5 @@
 
 void file_deo(Uxn *uxn, Byte addr);
 Byte file_dei(Uxn *uxn, Byte addr);
+
+#endif // file_h

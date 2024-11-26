@@ -1,6 +1,9 @@
 #include "../common.h"
 #include "../uxn.h"
 
+#ifndef console_h
+#define console_h
+
 #define CONSOLE_VECTOR_PORT 0x10
 #define CONSOLE_READ_PORT 0x12
 #define CONSOLE_TYPE_PORT 0x17
@@ -19,3 +22,5 @@
 void console_poll(Uxn *uxn);
 int console_input_event(Uxn *uxn, Byte c, Byte type);
 void console_deo(Uxn *uxn, Byte addr);
+
+#endif // console_h

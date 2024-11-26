@@ -1,6 +1,9 @@
 #include "../common.h"
 #include "../uxn.h"
 
+#ifndef mouse_h
+#define mouse_h
+
 #define MOUSE_VECTOR_PORT 0x90
 #define MOUSE_X_PORT 0x92
 #define MOUSE_Y_PORT 0x94
@@ -21,3 +24,5 @@ void mouse_button_down(Uxn *uxn, Byte mask);
 void mouse_button_up(Uxn *uxn, Byte mask);
 void mouse_move(Uxn *uxn, Short x, Short y);
 void mouse_scroll(Uxn *uxn, Short x, Short y);
+
+#endif // mouse_h

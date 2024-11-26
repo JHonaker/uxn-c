@@ -1,6 +1,9 @@
 #include "../common.h"
 #include "../uxn.h"
 
+#ifndef system_h
+#define system_h
+
 #define SYSTEM_EXPANSION_PORT 0x02
 #define SYSTEM_WST_PORT 0x04
 #define SYSTEM_RST_PORT 0x05
@@ -20,3 +23,5 @@ int system_boot(Uxn *uxn, char *rom_path);
 
 Byte system_dei(Uxn *uxn, Byte addr);
 void system_deo(Uxn *uxn, Byte addr);
+
+#endif // system_h

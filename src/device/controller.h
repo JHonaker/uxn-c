@@ -1,6 +1,9 @@
 #include "../common.h"
 #include "../uxn.h"
 
+#ifndef controller_h
+#define controller_h
+
 #define CONTROLLER_VECTOR_PORT 0x80
 #define CONTROLLER_BUTTON_PORT 0x82
 #define CONTROLLER_KEY_PORT 0x83
@@ -19,3 +22,5 @@ typedef enum {
 void controller_button_down(Uxn *uxn, Byte mask);
 void controller_button_up(Uxn *uxn, Byte mask);
 void controller_key_down(Uxn *uxn, Byte key);
+
+#endif // controller_h
