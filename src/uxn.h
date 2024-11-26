@@ -89,16 +89,17 @@ Byte uxn_peek_ret(T *uxn);
 
 void uxn_mem_zero(T *uxn, bool include_zero_page);
 
-void uxn_mem_load(T *uxn, Byte *program, unsigned long size, Short addr);
-Byte uxn_mem_read(T *uxn, Short addr);
-Short uxn_mem_read_short(T *uxn, Short addr);
+void uxn_mem_load(T *uxn, Byte *program, unsigned long size, size_t addr);
+Byte uxn_mem_read(T *uxn, size_t addr);
+Short uxn_mem_read_short(T *uxn, size_t addr);
 
-void uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[size],  Short address);
+void uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[size],  size_t addr);
 
-void uxn_mem_write(T *uxn, Short addr, Byte value);
+void uxn_mem_write(T *uxn, size_t addr, Byte value);
 
-Byte uxn_page_read(T *uxn, Short page, Short addr);
-void uxn_page_write(T *uxn, Short page, Short addr, Byte value);
+Byte uxn_page_read(T *uxn, Short page, size_t addr);
+void uxn_page_write(T *uxn, Short page, size_t addr, Byte value);
+void uxn_page_load(Uxn *uxn, Byte program[], unsigned long size, size_t page, size_t addr);
 
 // Interaction with the Uxn instance
 
@@ -124,6 +125,8 @@ void uxn_set_open_files(T *uxn, void *files);
 bool uxn_eval(T *uxn, Short pc);
 
 void uxn_dump(T *uxn);
+
+void uxn_dump_page(T *uxn, Short page);
 
 #undef T
 #endif // uxn_h

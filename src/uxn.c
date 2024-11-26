@@ -4,7 +4,7 @@
 #include <string.h>
 
 #define PAGE_ADDR(page, addr)                                                  \
-  (((page) * RAM_PAGE_SIZE + (addr)) & (RAM_PAGE_SIZE - 1))
+  ((page) * RAM_PAGE_SIZE + (addr))
 
 extern Byte uxn_dei_dispatch(Uxn *uxn, Byte addr);
 extern void uxn_deo_dispatch(Uxn *uxn, Byte addr);
@@ -132,16 +132,17 @@ void uxn_push_short(Uxn *uxn, Short value, bool to_return_stack) {
 
 // Memory operations
 
-Byte uxn_page_read(Uxn *uxn, Short page, Short addr) {
+Byte uxn_page_read(Uxn *uxn, Short page, size_t addr) {
   return uxn->ram[PAGE_ADDR(page, addr)];
 }
 
-void uxn_page_load(Uxn *uxn, Byte program[], unsigned long size, Short page,
-                   Short addr) {
-  memcpy(&uxn->ram[PAGE_ADDR(page, addr)], program, size);
+void uxn_page_load(Uxn *uxn, Byte program[], unsigned long size, size_t page,
+                   size_t addr) {
+  size_t idx = PAGE_ADDR(page, addr);
+  memcpy(&uxn->ram[idx], program, size);
 }
 
-void uxn_page_write(Uxn *uxn, Short page, Short addr, Byte value) {
+void uxn_page_write(Uxn *uxn, Short page, size_t addr, Byte value) {
   uxn->ram[PAGE_ADDR(page, addr)] = value;
 }
 void uxn_mem_zero(Uxn *uxn, bool soft) {
@@ -150,46 +151,46 @@ void uxn_mem_zero(Uxn *uxn, bool soft) {
   }
 }
 
-void uxn_mem_load(Uxn *uxn, Byte program[], unsigned long size, Short addr) {
+void uxn_mem_load(Uxn *uxn, Byte program[], unsigned long size, size_t addr) {
   uxn_page_load(uxn, program, size, 0, addr);
 }
 
-Byte uxn_mem_read(Uxn *uxn, Short address) { return uxn->ram[PAGE_ADDR(0, address)]; }
+Byte uxn_mem_read(Uxn *uxn, size_t addr) { return uxn->ram[PAGE_ADDR(0, addr)]; }
 
-void uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[size], Short address) {
-  memcpy(buffer, &uxn->ram[address], size);
+void uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[size], size_t addr) {
+  memcpy(buffer, &uxn->ram[addr], size);
 }
 
-Short uxn_mem_read_short(Uxn *uxn, Short address) {
-  return (uxn->ram[PAGE_ADDR(0, address)] << 8) | uxn->ram[PAGE_ADDR(0, address + 1)];
+Short uxn_mem_read_short(Uxn *uxn, size_t addr) {
+  return (uxn->ram[PAGE_ADDR(0, addr)] << 8) | uxn->ram[PAGE_ADDR(0, addr + 1)];
 }
 
-void uxn_mem_write(Uxn *uxn, Short address, Byte value) {
-  uxn->ram[PAGE_ADDR(0, address)] = value;
+void uxn_mem_write(Uxn *uxn, size_t addr, Byte value) {
+  uxn->ram[PAGE_ADDR(0, addr)] = value;
 }
 
-void uxn_mem_write_short(Uxn *uxn, Short address, Short value) {
-  uxn->ram[PAGE_ADDR(0, address)] = value >> 8;
-  uxn->ram[PAGE_ADDR(0, address + 1)] = value & 0xff;
+void uxn_mem_write_short(Uxn *uxn, size_t addr, Short value) {
+  uxn->ram[PAGE_ADDR(0, addr)] = value >> 8;
+  uxn->ram[PAGE_ADDR(0, addr + 1)] = value & 0xff;
 }
 
-Byte uxn_zero_page_read(Uxn *uxn, Byte address) {
-  return uxn->ram[address & (RESET_VECTOR - 1)];
+Byte uxn_zero_page_read(Uxn *uxn, Byte addr) {
+  return uxn->ram[addr & (RESET_VECTOR - 1)];
 }
 
-Short uxn_zero_page_read_short(Uxn *uxn, Byte address) {
-  Byte high = uxn->ram[address & (RESET_VECTOR - 1)];
-  Byte low = uxn->ram[(address + 1) & (RESET_VECTOR - 1)];
+Short uxn_zero_page_read_short(Uxn *uxn, Byte addr) {
+  Byte high = uxn->ram[addr & (RESET_VECTOR - 1)];
+  Byte low = uxn->ram[(addr + 1) & (RESET_VECTOR - 1)];
   return (high << 8) | low;
 }
 
-void uxn_zero_page_write(Uxn *uxn, Byte address, Byte value) {
-  uxn->ram[address & (RESET_VECTOR - 1)] = value;
+void uxn_zero_page_write(Uxn *uxn, Byte addr, Byte value) {
+  uxn->ram[addr & (RESET_VECTOR - 1)] = value;
 }
 
-void uxn_zero_page_write_short(Uxn *uxn, Byte address, Short value) {
-  uxn->ram[address & (RESET_VECTOR - 1)] = value >> 8;
-  uxn->ram[(address + 1) & (RESET_VECTOR - 1)] = value & 0xff;
+void uxn_zero_page_write_short(Uxn *uxn, Byte addr, Short value) {
+  uxn->ram[addr & (RESET_VECTOR - 1)] = value >> 8;
+  uxn->ram[(addr + 1) & (RESET_VECTOR - 1)] = value & 0xff;
 }
 
 // Device operations
@@ -1421,5 +1422,15 @@ void uxn_dump(Uxn *uxn) {
   if (uxn) {
     Stack_dump(uxn->work, "WST");
     Stack_dump(uxn->ret, "RST");
+  }
+}
+
+void uxn_dump_page(Uxn *uxn, Short page) {
+  if (uxn) {
+    printf("Page %d\n", page);
+    for (size_t i = 0; i < RAM_PAGE_SIZE; i++) {
+      printf("%02x ", uxn->ram[PAGE_ADDR(page, i)]);
+    }
+    printf("\n\n");
   }
 }
