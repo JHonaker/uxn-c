@@ -81,7 +81,7 @@ int convert_raylib_to_ascii(KeyboardKey key, bool shift_pressed) {
     case KEY_L: return KDEF('l', 'L');
     case KEY_SEMICOLON: return KDEF(';', ':');
     case KEY_APOSTROPHE: return KDEF('\'', '"');
-    case KEY_ENTER: return '\n';
+    case KEY_ENTER: return 0x0d;
     case KEY_Z: return KDEF('z', 'Z');
     case KEY_X: return KDEF('x', 'X');
     case KEY_C: return KDEF('c', 'C');
@@ -114,7 +114,7 @@ int convert_raylib_to_ascii(KeyboardKey key, bool shift_pressed) {
     case KEY_KP_MULTIPLY: return '*';
     case KEY_KP_SUBTRACT: return '-';
     case KEY_KP_ADD: return '+';
-    case KEY_KP_ENTER: return '\n';
+    case KEY_KP_ENTER: return 0x0d;
     case KEY_KP_EQUAL: return '=';
     default: return 0;
 
