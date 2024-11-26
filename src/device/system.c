@@ -5,6 +5,7 @@
 #include "../uxn.h"
 
 #include <stdio.h>
+#include <string.h>
 
 // System expansion operations
 static void system_expansion_fill(Uxn *uxn, Short op_addr) {
@@ -71,11 +72,14 @@ static int system_load(Uxn *uxn, char *filename) {
   int page = 0;
 
   int l = fread(&page_buffer[RESET_VECTOR], RAM_PAGE_SIZE - RESET_VECTOR, 1, f);
-  uxn_mem_load(uxn, page_buffer, sizeof(page_buffer), 0);
 
-  while (l != 0 && ++page < RAM_PAGES) {
+  while (l != 0 && page < RAM_PAGES) {
+    printf("Loading page %d\n", page);
+    uxn_page_load(uxn, page_buffer, sizeof(page_buffer), page, 0);
+
+    memset(page_buffer, 0, sizeof(page_buffer));
     l = fread(page_buffer, RAM_PAGE_SIZE, 1, f);
-    uxn_mem_load(uxn, page_buffer, sizeof(page_buffer), page * RAM_PAGE_SIZE);
+    page++;
   }
 
   fclose(f);
