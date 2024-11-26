@@ -6,7 +6,7 @@
 #include "screen.h"
 #include "system.h"
 
-#define ERASE WHITE;
+#define ERASE WHITE
 #define T RaylibScreen
 
 // clang-format off
@@ -344,7 +344,7 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
 
     if (erase_mode) {
       screen_ImageErase(&layer_buffer, screen->sprite_buffer, x + i * dx,
-                        y + i * dy, WHITE);
+                        y + i * dy, ERASE);
     } else {
       ImageDraw(
           &layer_buffer, screen->sprite_buffer,
