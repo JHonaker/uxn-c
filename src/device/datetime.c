@@ -33,7 +33,7 @@ Byte datetime_dei(Uxn *uxn, Byte addr) {
   case DATETIME_ISDST_PORT:
     return tm->tm_isdst;
   default:
-    return Uxn_dev_read(uxn, addr);
+    return uxn_dev_read(uxn, addr);
   }
 
   free(tm);

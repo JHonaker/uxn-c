@@ -184,7 +184,7 @@ void handle_input(Uxn *uxn, int scale_factor) {
   handle_mouse(uxn, scale_factor);
 }
 
-Byte Uxn_dei_dispatch(Uxn *uxn, Byte addr) {
+Byte uxn_dei_dispatch(Uxn *uxn, Byte addr) {
   const Byte page = addr & 0xf0;
   switch (page) {
   case DEVICE_PAGE_SYSTEM:
@@ -197,11 +197,11 @@ Byte Uxn_dei_dispatch(Uxn *uxn, Byte addr) {
   case DEVICE_PAGE_DATETIME:
     return datetime_dei(uxn, addr);
   default:
-    return Uxn_dev_read(uxn, addr);
+    return uxn_dev_read(uxn, addr);
   }
 }
 
-void Uxn_deo_dispatch(Uxn *uxn, Byte addr) {
+void uxn_deo_dispatch(Uxn *uxn, Byte addr) {
   const Byte page = addr & 0xf0;
   switch (page) {
   case DEVICE_PAGE_SYSTEM: {
@@ -255,14 +255,14 @@ int main(int argc, char *argv[]) {
   SetExitKey(0);
   HideCursor();
 
-  Uxn *uxn = Uxn_new(screen);
+  Uxn *uxn = uxn_new(screen);
 
   screen_boot(uxn);
   system_boot(uxn, (char *)rom_filename);
 
   bool continue_execution = true;
 
-  Uxn_eval(uxn, RESET_VECTOR);
+  uxn_eval(uxn, RESET_VECTOR);
 
   for (int i = optind + 1; i < argc; i++) {
     char *p = argv[i];
@@ -279,11 +279,11 @@ int main(int argc, char *argv[]) {
 
     handle_input(uxn, scale);
 
-    continue_execution = Uxn_dev_read(uxn, SYSTEM_STATE_PORT) == 0;
+    continue_execution = uxn_dev_read(uxn, SYSTEM_STATE_PORT) == 0;
   }
 
   screen_delete(screen);
-  Uxn_delete(uxn);
+  uxn_delete(uxn);
 
   return 0;
 }

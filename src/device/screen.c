@@ -140,21 +140,21 @@ void screen_redraw(Uxn *uxn, T *screen) {
   EndDrawing();
 
   if (WindowShouldClose())
-    Uxn_dev_write(uxn, SYSTEM_STATE_PORT, 1);
+    uxn_dev_write(uxn, SYSTEM_STATE_PORT, 1);
 }
 
 void screen_boot(Uxn *uxn) {
-  RaylibScreen *screen = Uxn_get_screen(uxn);
+  RaylibScreen *screen = uxn_get_screen(uxn);
 
-  Uxn_dev_write_short(uxn, SCREEN_WIDTH_PORT, screen->width);
-  Uxn_dev_write_short(uxn, SCREEN_HEIGHT_PORT, screen->height);
+  uxn_dev_write_short(uxn, SCREEN_WIDTH_PORT, screen->width);
+  uxn_dev_write_short(uxn, SCREEN_HEIGHT_PORT, screen->height);
 }
 
 void screen_pixel_port(Uxn *uxn, T *screen) {
-  int x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
-  int y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
+  int x = uxn_dev_read_short(uxn, SCREEN_X_PORT);
+  int y = uxn_dev_read_short(uxn, SCREEN_Y_PORT);
 
-  Byte control = Uxn_dev_read(uxn, SCREEN_PIXEL_PORT);
+  Byte control = uxn_dev_read(uxn, SCREEN_PIXEL_PORT);
 
   Byte flip_x = control & 0x10;
   Byte flip_y = control & 0x20;
@@ -162,7 +162,7 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
   Byte layer = control & 0x40 ? FG_LAYER : BG_LAYER;
   Byte color = control & 0x03;
 
-  Byte auto_byte = Uxn_dev_read(uxn, SCREEN_AUTO_PORT);
+  Byte auto_byte = uxn_dev_read(uxn, SCREEN_AUTO_PORT);
   Byte auto_x = auto_byte & 0x01;
   Byte auto_y = auto_byte & 0x02;
 
@@ -194,17 +194,17 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
 
   if (auto_x) {
     x++;
-    Uxn_dev_write_short(uxn, SCREEN_X_PORT, x);
+    uxn_dev_write_short(uxn, SCREEN_X_PORT, x);
   }
 
   if (auto_y) {
     y++;
-    Uxn_dev_write_short(uxn, SCREEN_Y_PORT, y);
+    uxn_dev_write_short(uxn, SCREEN_Y_PORT, y);
   }
 }
 
 void read_sprite_chunk(Uxn *uxn, Byte buffer[SPRITE_BUFFER_SIZE], Short addr) {
-  Uxn_mem_buffer_read(uxn, SPRITE_BUFFER_SIZE, buffer, addr);
+  uxn_mem_buffer_read(uxn, SPRITE_BUFFER_SIZE, buffer, addr);
 }
 
 void decode_1bpp_sprite(Byte sprite_data[SPRITE_BUFFER_SIZE],
@@ -232,7 +232,7 @@ void decode_2bpp_sprite(Byte low_bit_data[SPRITE_BUFFER_SIZE],
   }
 }
 void read_1bpp_sprite(Uxn *uxn, Image *buffer, Color palette[]) {
-  Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
+  Short addr = uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
 
   Byte sprite_data[SPRITE_BUFFER_SIZE] = {0};
   read_sprite_chunk(uxn, sprite_data, addr);
@@ -251,7 +251,7 @@ void read_1bpp_sprite(Uxn *uxn, Image *buffer, Color palette[]) {
 }
 
 void read_2bpp_sprite(Uxn *uxn, Image *buffer, Color palette[]) {
-  Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
+  Short addr = uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
 
   Byte low_bit_data[SPRITE_BUFFER_SIZE] = {0};
   Byte high_bit_data[SPRITE_BUFFER_SIZE] = {0};
@@ -272,21 +272,21 @@ void read_2bpp_sprite(Uxn *uxn, Image *buffer, Color palette[]) {
 }
 
 static void shift_sprite_addr(Uxn *uxn, bool two_bit_mode) {
-  Short addr = Uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
+  Short addr = uxn_dev_read_short(uxn, SCREEN_ADDR_PORT);
   addr += two_bit_mode ? 16 : 8;
-  Uxn_dev_write_short(uxn, SCREEN_ADDR_PORT, addr);
+  uxn_dev_write_short(uxn, SCREEN_ADDR_PORT, addr);
 }
 
 void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
-  SignedShort x = Uxn_dev_read_short(uxn, SCREEN_X_PORT);
-  SignedShort y = Uxn_dev_read_short(uxn, SCREEN_Y_PORT);
+  SignedShort x = uxn_dev_read_short(uxn, SCREEN_X_PORT);
+  SignedShort y = uxn_dev_read_short(uxn, SCREEN_Y_PORT);
 
   Byte flip_x = control & 0x10;
   Byte flip_y = control & 0x20;
   DrawLayer layer = control & 0x40 ? FG_LAYER : BG_LAYER;
   Byte color = control & 0xf;
 
-  Byte auto_byte = Uxn_dev_read(uxn, SCREEN_AUTO_PORT);
+  Byte auto_byte = uxn_dev_read(uxn, SCREEN_AUTO_PORT);
   Byte auto_x = auto_byte & 0x01;
   Byte auto_y = auto_byte & 0x02;
 
@@ -370,25 +370,25 @@ void screen_draw_sprite(Uxn *uxn, T *screen, Byte control) {
 
   if (auto_x) {
     x += (SignedShort)(dirX * SPRITE_WIDTH);
-    Uxn_dev_write_short(uxn, SCREEN_X_PORT, x);
+    uxn_dev_write_short(uxn, SCREEN_X_PORT, x);
   }
 
   if (auto_y) {
     y += (SignedShort)(dirY * SPRITE_HEIGHT);
-    Uxn_dev_write_short(uxn, SCREEN_Y_PORT, y);
+    uxn_dev_write_short(uxn, SCREEN_Y_PORT, y);
   }
 }
 
 void screen_sprite_port(Uxn *uxn, T *screen) {
-  screen_draw_sprite(uxn, screen, Uxn_dev_read(uxn, SCREEN_SPRITE_PORT));
+  screen_draw_sprite(uxn, screen, uxn_dev_read(uxn, SCREEN_SPRITE_PORT));
 }
 
 void screen_change_palette(Uxn *uxn) {
-  RaylibScreen *screen = Uxn_get_screen(uxn);
+  RaylibScreen *screen = uxn_get_screen(uxn);
 
-  Short red_bits = Uxn_dev_read_short(uxn, SYSTEM_RED_PORT);
-  Short green_bits = Uxn_dev_read_short(uxn, SYSTEM_GREEN_PORT);
-  Short blue_bits = Uxn_dev_read_short(uxn, SYSTEM_BLUE_PORT);
+  Short red_bits = uxn_dev_read_short(uxn, SYSTEM_RED_PORT);
+  Short green_bits = uxn_dev_read_short(uxn, SYSTEM_GREEN_PORT);
+  Short blue_bits = uxn_dev_read_short(uxn, SYSTEM_BLUE_PORT);
 
   for (int color = 0; color < 4; color++) {
     Byte shift = (3 - color) * 4;
@@ -411,18 +411,18 @@ void screen_change_palette(Uxn *uxn) {
 }
 
 void screen_update(Uxn *uxn) {
-  RaylibScreen *screen = Uxn_get_screen(uxn);
-  Short screen_vector = Uxn_dev_read_short(uxn, SCREEN_VECTOR_PORT);
+  RaylibScreen *screen = uxn_get_screen(uxn);
+  Short screen_vector = uxn_dev_read_short(uxn, SCREEN_VECTOR_PORT);
 
-  Uxn_eval(uxn, screen_vector);
+  uxn_eval(uxn, screen_vector);
   screen_redraw(uxn, screen);
 }
 
 void screen_resize(Uxn *uxn) {
-  RaylibScreen *screen = Uxn_get_screen(uxn);
+  RaylibScreen *screen = uxn_get_screen(uxn);
 
-  screen->width = Uxn_dev_read_short(uxn, SCREEN_WIDTH_PORT);
-  screen->height = Uxn_dev_read_short(uxn, SCREEN_HEIGHT_PORT);
+  screen->width = uxn_dev_read_short(uxn, SCREEN_WIDTH_PORT);
+  screen->height = uxn_dev_read_short(uxn, SCREEN_HEIGHT_PORT);
 
   UnloadImage(screen->bg_buffer);
   UnloadImage(screen->fg_buffer);
@@ -438,7 +438,7 @@ void screen_resize(Uxn *uxn) {
 }
 
 Byte screen_dei(Uxn *uxn, Byte addr) {
-  RaylibScreen *screen = Uxn_get_screen(uxn);
+  RaylibScreen *screen = uxn_get_screen(uxn);
   switch (addr) {
   case SCREEN_WIDTH_PORT:
     return screen->width >> 8;
@@ -449,12 +449,12 @@ Byte screen_dei(Uxn *uxn, Byte addr) {
   case SCREEN_HEIGHT_PORT + 1:
     return screen->height & 0xff;
   default:
-    return Uxn_dev_read(uxn, addr);
+    return uxn_dev_read(uxn, addr);
   }
 }
 
 void screen_deo(Uxn *uxn, Byte addr) {
-  RaylibScreen *screen = Uxn_get_screen(uxn);
+  RaylibScreen *screen = uxn_get_screen(uxn);
 
   switch (addr) {
   case SCREEN_WIDTH_PORT:

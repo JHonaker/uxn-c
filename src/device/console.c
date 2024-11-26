@@ -9,14 +9,14 @@
 #define CONSOLE_INPUT_BUFFER_SIZE 0xff
 
 int console_input_event(Uxn *uxn, Byte c, Byte type) {
-  Uxn_dev_write(uxn, CONSOLE_READ_PORT, c);
-  Uxn_dev_write(uxn, CONSOLE_TYPE_PORT, type);
+  uxn_dev_write(uxn, CONSOLE_READ_PORT, c);
+  uxn_dev_write(uxn, CONSOLE_TYPE_PORT, type);
 
-  Byte high = Uxn_dev_read(uxn, CONSOLE_VECTOR_PORT);
-  Byte low = Uxn_dev_read(uxn, CONSOLE_VECTOR_PORT + 1);
+  Byte high = uxn_dev_read(uxn, CONSOLE_VECTOR_PORT);
+  Byte low = uxn_dev_read(uxn, CONSOLE_VECTOR_PORT + 1);
   Short vector_addr = (high << 8) | low;
 
-  return Uxn_eval(uxn, vector_addr);
+  return uxn_eval(uxn, vector_addr);
 }
 
 void console_poll(Uxn *uxn) {
@@ -42,13 +42,13 @@ void console_poll(Uxn *uxn) {
 }
 
 void console_display_write(Uxn *uxn) {
-  Byte write_byte = Uxn_dev_read(uxn, CONSOLE_WRITE_PORT);
+  Byte write_byte = uxn_dev_read(uxn, CONSOLE_WRITE_PORT);
   fputc(write_byte, stdout);
   fflush(stdout);
 }
 
 void console_display_error(Uxn *uxn) {
-  Byte error_byte = Uxn_dev_read(uxn, CONSOLE_ERROR_PORT);
+  Byte error_byte = uxn_dev_read(uxn, CONSOLE_ERROR_PORT);
   fputc(error_byte, stderr);
   fflush(stderr);
 }
