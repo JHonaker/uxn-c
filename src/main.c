@@ -5,16 +5,13 @@
 
 #include "common.h"
 #include "device/console.h"
-#include "device/raylib/controller.h"
 #include "device/datetime.h"
 #include "device/file.h"
+#include "device/raylib/controller.h"
 #include "device/raylib/mouse.h"
 #include "device/screen.h"
 #include "device/system.h"
 #include "uxn.h"
-
-
-
 
 void handle_input(Uxn *uxn, int scale_factor) {
   console_poll(uxn);
