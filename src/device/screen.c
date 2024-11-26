@@ -172,7 +172,7 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
 
   bool erase_mode = color == 0 && layer == FG_LAYER;
   if (erase_mode) {
-    draw_color = ERASE;
+    draw_color = BLANK;
   }
 
   Image *layer_buffer =
@@ -189,7 +189,7 @@ void screen_pixel_port(Uxn *uxn, T *screen) {
                        draw_color);
 
   } else {
-    ImageDrawPixel(layer_buffer, x, y, screen->palette[color]);
+    ImageDrawPixel(layer_buffer, x, y, draw_color);
   }
 
   if (auto_x) {
