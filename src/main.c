@@ -42,6 +42,7 @@ int convert_raylib_to_ascii(KeyboardKey key, bool shift_pressed) {
   // clang-format off
 
   switch (key) {
+    case KEY_ESCAPE: return 0x1b;
     case KEY_GRAVE: return KDEF('`', '~');
     case KEY_ONE: return KDEF('1', '!');
     case KEY_TWO: return KDEF('2', '@');
