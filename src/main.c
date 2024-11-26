@@ -251,6 +251,7 @@ int main(int argc, char *argv[]) {
   ScreenT *screen =
       screen_new(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, scale);
 
+  SetExitKey(0);
   HideCursor();
 
   Uxn *uxn = Uxn_new(screen);
