@@ -1,3 +1,6 @@
+#include "controller.h"
+#include "../controller.h"
+#include <raylib.h>
 
 int convert_raylib_to_ascii(KeyboardKey key, bool shift_pressed) {
 #define KDEF(k, shifted_k) (!shift_pressed ? k : shifted_k)

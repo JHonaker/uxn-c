@@ -1,5 +1,4 @@
 #include "../mouse.h"
-#include "../../common.h"
 #include <raylib.h>
 
 void handle_mouse_button(Uxn *uxn, UxnMouseButton button,
