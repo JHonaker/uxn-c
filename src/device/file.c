@@ -29,29 +29,29 @@ typedef enum {
   STATE_COUNT
 } UxnFileState;
 
-struct UxnFile {
+typedef struct UxnFile {
   UxnStreamType type;
   char *name;
   UxnFileState state;
   FILE *fp;
-};
+} UxnFile;
 
-struct UxnDir {
+typedef struct UxnDir {
   UxnStreamType type;
   char *name;
   UxnFileState state;
   DIR *dp;
   char *content;
   size_t read_offset;
-};
+} UxnDir;
 
-union UxnStream {
+typedef union UxnStream {
   struct UxnFile file;
   struct UxnDir dir;
-};
+} UxnStream;
 
-int stream_init(union UxnStream *stream, char *name);
-void stream_close(union UxnStream *stream);
+int stream_init(UxnStream *stream, char *name);
+void stream_close(UxnStream *stream);
 
 char *read_filename(Uxn *uxn, Short addr) {
   char *name = calloc(MAX_FILE_NAME_LENGTH + 1, sizeof(Byte));
@@ -72,12 +72,12 @@ char *read_filename(Uxn *uxn, Short addr) {
   return name;
 }
 
-void file_init(struct UxnFile *file, char *filename) {
+void file_init(UxnFile *file, char *filename) {
   *file = (struct UxnFile){
       .fp = NULL, .name = filename, .type = UXN_FILE_TYPE, .state = STATE_INIT};
 }
 
-int file_open(struct UxnFile *file, UxnFileState state) {
+int file_open(UxnFile *file, UxnFileState state) {
   char *mode = NULL;
 
   switch (state) {
@@ -100,7 +100,7 @@ int file_open(struct UxnFile *file, UxnFileState state) {
   return file->fp ? 1 : 0;
 }
 
-void file_close(struct UxnFile *file) {
+void file_close(UxnFile *file) {
   if (file->fp) {
     fclose(file->fp);
     file->fp = NULL;
@@ -112,7 +112,7 @@ void file_close(struct UxnFile *file) {
   }
 }
 
-int file_reopen(struct UxnFile *file, UxnFileState state) {
+int file_reopen(UxnFile *file, UxnFileState state) {
   if (file->fp) {
     fclose(file->fp);
     file->fp = NULL;
@@ -120,7 +120,7 @@ int file_reopen(struct UxnFile *file, UxnFileState state) {
   return file_open(file, state);
 }
 
-void file_read(Uxn *uxn, struct UxnFile *file, Byte page) {
+void file_read(Uxn *uxn, UxnFile *file, Byte page) {
   if (!file->fp) {
     uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
     return;
@@ -149,7 +149,7 @@ void file_read(Uxn *uxn, struct UxnFile *file, Byte page) {
   uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, bytes_read);
 }
 
-void file_write(Uxn *uxn, struct UxnFile *file, Byte page) {
+void file_write(Uxn *uxn, UxnFile *file, Byte page) {
   if (!file->fp) {
     uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
     return;
@@ -168,7 +168,7 @@ void file_write(Uxn *uxn, struct UxnFile *file, Byte page) {
   uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, bytes_written);
 }
 
-void file_read_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
+void file_read_port_deo(Uxn *uxn, UxnFile *file, Byte page) {
   switch (file->state) {
   case STATE_INIT:
     if (file_open(file, STATE_READ)) {
@@ -197,7 +197,7 @@ void file_read_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
   }
 }
 
-void file_write_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
+void file_write_port_deo(Uxn *uxn, UxnFile *file, Byte page) {
   Short append_mode = uxn_dev_read(uxn, page | FILE_APPEND_PORT);
   UxnFileState state = append_mode ? STATE_APPEND : STATE_WRITE;
 
@@ -231,7 +231,7 @@ void file_write_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
   }
 }
 
-void file_delete_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
+void file_delete_port_deo(Uxn *uxn, UxnFile *file, Byte page) {
   remove(file->name);
   file_close(file);
 }
@@ -270,7 +270,7 @@ void file_stat(char *name, Short buffer_len, char *buffer,
   }
 }
 
-void file_stat_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
+void file_stat_port_deo(Uxn *uxn, UxnFile *file, Byte page) {
   Short buffer_addr = uxn_dev_read_short(uxn, page | FILE_STAT_PORT);
   Short buffer_len = uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
 
@@ -287,7 +287,7 @@ void file_stat_port_deo(Uxn *uxn, struct UxnFile *file, Byte page) {
 
 // Directory
 
-void dir_init(struct UxnDir *dir, char *dirname) {
+void dir_init(UxnDir *dir, char *dirname) {
   *dir = (struct UxnDir){.dp = NULL,
                          .name = dirname,
                          .type = UXN_DIR_TYPE,
@@ -295,14 +295,14 @@ void dir_init(struct UxnDir *dir, char *dirname) {
                          .read_offset = 0};
 }
 
-int dir_open(struct UxnDir *dir) {
+int dir_open(UxnDir *dir) {
   dir->dp = opendir(dir->name);
   dir->state = STATE_INIT;
 
   return dir->dp ? 1 : 0;
 }
 
-int dir_close(struct UxnDir *dir) {
+int dir_close(UxnDir *dir) {
   if (dir->dp) {
     closedir(dir->dp);
     dir->dp = NULL;
@@ -321,7 +321,7 @@ int dir_close(struct UxnDir *dir) {
   return 1;
 }
 
-int dir_reopen(struct UxnDir *dir) {
+int dir_reopen(UxnDir *dir) {
   if (dir->dp) {
     closedir(dir->dp);
     dir->dp = NULL;
@@ -376,7 +376,7 @@ Short read_file_entry(char *path, char *filename, size_t max_size,
   return p - buffer;
 }
 
-void dir_read_continue(Uxn *uxn, struct UxnDir *dir, Byte page) {
+void dir_read_continue(Uxn *uxn, UxnDir *dir, Byte page) {
   Short write_addr = uxn_dev_read_short(uxn, page | FILE_READ_PORT);
   Short write_len = uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
 
@@ -403,7 +403,7 @@ int filter_dot_directories(const struct dirent *ep) {
   return !(strcmp(ep->d_name, ".") == 0 || strcmp(ep->d_name, "..") == 0);
 }
 
-void dir_read(Uxn *uxn, struct UxnDir *dir, Byte page) {
+void dir_read(Uxn *uxn, UxnDir *dir, Byte page) {
 
   if (!dir->dp) {
     uxn_dev_write_short(uxn, page | FILE_SUCCESS_PORT, 0);
@@ -468,7 +468,7 @@ void dir_read(Uxn *uxn, struct UxnDir *dir, Byte page) {
   dir_read_continue(uxn, dir, page);
 }
 
-void dir_read_port_deo(Uxn *uxn, struct UxnDir *dir, Byte page) {
+void dir_read_port_deo(Uxn *uxn, UxnDir *dir, Byte page) {
   switch (dir->state) {
   case STATE_INIT:
     if (dir_open(dir)) {
@@ -485,7 +485,7 @@ void dir_read_port_deo(Uxn *uxn, struct UxnDir *dir, Byte page) {
   }
 }
 
-void dir_stat_port_deo(Uxn *uxn, struct UxnDir *dir, Byte page) {
+void dir_stat_port_deo(Uxn *uxn, UxnDir *dir, Byte page) {
   Short buffer_addr = uxn_dev_read_short(uxn, page | FILE_STAT_PORT);
   Short buffer_len = uxn_dev_read_short(uxn, page | FILE_LENGTH_PORT);
 
@@ -523,7 +523,7 @@ void ensure_parent_directory_exists(char *pathname) {
   }
 }
 
-int stream_init(union UxnStream *stream, char *name) {
+int stream_init(UxnStream *stream, char *name) {
   struct stat st;
 
   int err = stat(name, &st);
@@ -546,7 +546,7 @@ int stream_init(union UxnStream *stream, char *name) {
   return 1;
 }
 
-void stream_close(union UxnStream *stream) {
+void stream_close(UxnStream *stream) {
   switch (stream->file.type) {
   case UXN_FILE_TYPE:
     file_close(&stream->file);
@@ -559,7 +559,7 @@ void stream_close(union UxnStream *stream) {
   }
 }
 
-void file_name_port_deo(Uxn *uxn, union UxnStream *stream, Byte page) {
+void file_name_port_deo(Uxn *uxn, UxnStream *stream, Byte page) {
   stream_close(stream);
   Short name_addr = uxn_dev_read_short(uxn, page | FILE_NAME_PORT);
   char *name = read_filename(uxn, name_addr);
@@ -567,7 +567,7 @@ void file_name_port_deo(Uxn *uxn, union UxnStream *stream, Byte page) {
 }
 
 void file_deo(Uxn *uxn, Byte addr) {
-  union UxnStream *streams = uxn_get_open_files(uxn);
+  UxnStream *streams = uxn_get_open_files(uxn);
 
   if (!streams) {
     streams = calloc(FILE_COUNT, sizeof(union UxnStream));
@@ -582,7 +582,7 @@ void file_deo(Uxn *uxn, Byte addr) {
     }
   }
 
-  union UxnStream *stream = &streams[FILE_IDX(addr)];
+  UxnStream *stream = &streams[FILE_IDX(addr)];
   const Byte page = addr & 0xf0;
   const Byte port = addr & 0x0f;
 
