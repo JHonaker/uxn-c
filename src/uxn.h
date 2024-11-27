@@ -85,6 +85,11 @@ Byte uxn_pop_ret(T *uxn);
  */
 Byte uxn_peek_ret(T *uxn);
 
+void uxn_push(Uxn *uxn, Byte value, bool to_return_stack);
+Byte uxn_pop(Uxn *uxn, bool from_return_stack);
+Short uxn_pop_short(Uxn *uxn, bool from_return_stack);
+void uxn_push_short(Uxn *uxn, Short value, bool to_return_stack);
+
 // Memory operations
 
 void uxn_mem_zero(T *uxn, bool include_zero_page);
@@ -96,10 +101,16 @@ Short uxn_mem_read_short(T *uxn, size_t addr);
 void uxn_mem_buffer_read(Uxn *uxn, Short size, Byte buffer[size],  size_t addr);
 
 void uxn_mem_write(T *uxn, size_t addr, Byte value);
+void uxn_mem_write_short(Uxn *uxn, size_t addr, Short value);
 
 Byte uxn_page_read(T *uxn, Short page, size_t addr);
 void uxn_page_write(T *uxn, Short page, size_t addr, Byte value);
 void uxn_page_load(Uxn *uxn, Byte program[], unsigned long size, size_t page, size_t addr);
+
+Byte uxn_zero_page_read(Uxn *uxn, Byte addr);
+Short uxn_zero_page_read_short(Uxn *uxn, Byte addr);
+void uxn_zero_page_write(Uxn *uxn, Byte addr, Byte value);
+void uxn_zero_page_write_short(Uxn *uxn, Byte addr, Short value);
 
 // Interaction with the Uxn instance
 
