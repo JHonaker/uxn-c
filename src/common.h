@@ -35,4 +35,8 @@ typedef int16_t SignedShort;
 // No device at 0xe0
 // No device at 0xf0
 
+static inline int high_nibble(Byte byte) { return (byte & 0xf0) >> 4; }
+
+static inline int low_nibble(Byte byte) { return byte & 0x0f; }
+
 #endif // uxn_common_h

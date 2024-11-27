@@ -6,13 +6,6 @@
 #define PAGE_ADDR(page, addr)                                                  \
   ((page) * RAM_PAGE_SIZE + (addr))
 
-extern Byte uxn_dei_dispatch(Uxn *uxn, Byte addr);
-extern void uxn_deo_dispatch(Uxn *uxn, Byte addr);
-
-int high_nibble(Byte byte) { return (byte & 0xf0) >> 4; }
-
-int low_nibble(Byte byte) { return byte & 0x0f; }
-
 bool is_keep_mode(Byte op) { return (op & 0x80) == 0x80; }
 
 bool is_return_mode(Byte op) { return (op & 0x40) == 0x40; }
